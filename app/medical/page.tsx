@@ -43,6 +43,7 @@ import {
   Menu,
   X,
   MessageCircle,
+  ChevronDown,
 } from "lucide-react"
 import Image from "next/image"
 
@@ -173,6 +174,17 @@ export default function MedicalInsurancePage() {
   const [selectedOptions, setSelectedOptions] = useState<Record<string, Set<string>>>({})
   const selectedOptionsRef = useRef<Record<string, Set<string>>>({})
   
+  // ヘルプの展開状態管理
+  const [expandedHelp, setExpandedHelp] = useState<string | null>(null)
+  
+  /**
+   * ヘルプの展開/折りたたみを切り替え
+   * @param questionId 質問ID
+   */
+  const toggleHelp = useCallback((questionId: string) => {
+    setExpandedHelp(prev => prev === questionId ? null : questionId)
+  }, [])
+  
   // 選択状態の即座更新用の関数（他の処理の影響を受けない）
   const updateSelectionImmediately = useCallback((questionId: string, optionId: string, isMultiSelect: boolean) => {
     const current = selectedOptionsRef.current[questionId] || new Set()
@@ -257,7 +269,8 @@ export default function MedicalInsurancePage() {
         { id: 'advanced_med', label: '先進医療の高額治療費' },
         { id: 'income_drop', label: '生活費が減ること（働けない期間の収入減）' }
       ],
-      info: '複数選択可能です',
+      info: '医療リスクの保障について',
+      helpContent: '医療保険では、入院・手術・通院など様々なリスクに対応できます。複数のリスクを選択することで、より包括的な保障を設計できます。例えば、入院費用だけでなく、手術費用や通院費用も含めることで、治療全体の経済的負担を軽減できます。',
       illustration: '🏥💊'
     },
     {
@@ -272,6 +285,7 @@ export default function MedicalInsurancePage() {
         { id: 'long', label: '長期（何か月も）にも備えたい' }
       ],
       info: '入院期間の保障について',
+      helpContent: '入院期間の保障は、病気やケガの重症度によって大きく変わります。短期間の保障は保険料が安いですが、長期入院が必要になった場合の保障が不足する可能性があります。中期や長期の保障を選ぶことで、より安心な保障を得られます。',
       illustration: '📅🏥'
     },
     {
@@ -286,6 +300,7 @@ export default function MedicalInsurancePage() {
         { id: 'keep_level', label: '普段と変わらない生活水準を維持したい' }
       ],
       info: '生活費の保障レベルについて',
+      helpContent: '入院中は収入が減る一方で、食事代や交通費などの生活費がかかります。最低限の保障では生活が苦しくなる可能性があります。余裕を持った保障を選ぶことで、治療に集中できる環境を整えられます。',
       illustration: '💰🏠'
     },
     {
@@ -299,33 +314,25 @@ export default function MedicalInsurancePage() {
         { id: 'finish_early', label: '働いているうちに払い終えて安心したい' }
       ],
       info: '保険料の支払い方針について',
+      helpContent: '保険料の支払い方針は、現在の経済状況と将来のライフプランによって決まります。毎月の負担を軽くすることで、継続しやすくなります。一方、早期に払い終えることで、老後の負担を軽減できます。',
       illustration: '💳📊'
     },
     {
       id: 'Q5',
       number: 'Q5',
-      question: '保険で優先したいのはどちらですか？',
+      question: '現在の年齢は？',
       highlightedWords: [],
       ui: 'single_choice',
       options: [
-        { id: 'broad', label: '幅広い病気やケガにまんべんなく備える' },
-        { id: 'focused', label: '特定のリスク（がん・特定疾病など）に手厚く備える' }
+        { id: '20s', label: '20代' },
+        { id: '30s', label: '30代' },
+        { id: '40s', label: '40代' },
+        { id: '50s', label: '50代' },
+        { id: '60s', label: '60代以上' }
       ],
-      info: '保障範囲の考え方について',
-      illustration: '🛡️🎯'
-    },
-    {
-      id: 'Q6',
-      number: 'Q6',
-      question: '保険に入る目的はどちらに近いですか？',
-      highlightedWords: [],
-      ui: 'single_choice',
-      options: [
-        { id: 'shock_absorb', label: '万一のときの経済的ショックを減らす' },
-        { id: 'build_ahead', label: '将来のために早めに備えを固める' }
-      ],
-      info: '保険の目的について',
-      illustration: '🎯🔮'
+      info: '年齢による保険料の違いについて',
+      helpContent: '年齢が上がるほど、病気やケガのリスクが高くなり、保険料も高くなります。若いうちに加入することで、より安い保険料で長期間の保障を得られます。また、年齢制限のある特約も利用しやすくなります。',
+      illustration: '🎂📈'
     }
   ]
   
@@ -1853,15 +1860,33 @@ export default function MedicalInsurancePage() {
                       </div>
                     )}
                     
-                    {/* 情報セクション */}
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-5 h-5 bg-orange-500 text-white rounded-full flex items-center justify-center">
-                          <span className="text-xs font-bold">i</span>
+                    {/* 情報セクション（アコーディオン形式） */}
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+                      <button
+                        className="w-full p-2 flex items-center justify-between hover:bg-gray-100 transition-colors"
+                        onClick={() => toggleHelp(q.id)}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <div className="w-5 h-5 bg-orange-500 text-white rounded-full flex items-center justify-center">
+                            <span className="text-xs font-bold">i</span>
+                          </div>
+                          <span className="text-sm text-blue-600">{q.info}</span>
                         </div>
-                        <span className="text-sm text-blue-600">{q.info}</span>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-gray-400" />
+                        <ChevronDown 
+                          className={`h-4 w-4 text-gray-400 transition-transform ${
+                            expandedHelp === q.id ? 'rotate-180' : ''
+                          }`} 
+                        />
+                      </button>
+                      
+                      {/* ヘルプ内容（アコーディオン） */}
+                      {expandedHelp === q.id && (
+                        <div className="px-3 pb-3 border-t border-gray-200">
+                          <div className="pt-2 text-sm text-gray-700 leading-relaxed">
+                            {q.helpContent}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
