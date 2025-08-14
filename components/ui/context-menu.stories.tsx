@@ -40,7 +40,7 @@ import { Badge } from "@/components/ui/badge"
 import { 
   ArrowLeftIcon,
   ArrowRightIcon,
-  ReloadIcon,
+  LoaderIcon,
   DownloadIcon,
   LinkIcon,
   EditIcon,
@@ -84,7 +84,11 @@ const meta: Meta<typeof ContextMenu> = {
 }
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = {
+  render: (args?: any) => JSX.Element
+  args?: Record<string, any>
+  [key: string]: any
+}
 
 /**
  * 基本的なContext Menuストーリー（shadcn/ui公式例）

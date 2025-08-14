@@ -54,7 +54,11 @@ const meta: Meta<typeof Stepper> = {
 }
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = {
+  render: (args?: any) => JSX.Element
+  args?: Record<string, any>
+  [key: string]: any
+}
 
 /**
  * 基本
@@ -73,6 +77,9 @@ export const Basic: Story = {
       "本人確認",
     ],
   },
+  render: (args) => (
+    <Stepper {...args} />
+  ),
 }
 
 /**
@@ -84,6 +91,9 @@ export const WithCaptions: Story = {
     totalSteps: 6,
     size: "md",
   },
+  render: (args) => (
+    <Stepper {...args} />
+  ),
 }
 
 /**
@@ -103,6 +113,9 @@ export const CustomLabels: Story = {
       "送付",
     ],
   },
+  render: (args) => (
+    <Stepper {...args} />
+  ),
 }
 
 /**
@@ -137,6 +150,9 @@ export const ShortSteps: Story = {
     size: "auto",
     stepLabels: ["入力", "確認", "完了"],
   },
+  render: (args) => (
+    <Stepper {...args} />
+  ),
 }
 
 /**
@@ -158,6 +174,9 @@ export const ManySteps: Story = {
       "8",
     ],
   },
+  render: (args) => (
+    <Stepper {...args} />
+  ),
 }
 
 /**

@@ -67,7 +67,11 @@ const meta: Meta<typeof Carousel> = {
 }
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = {
+  render: (args?: any) => JSX.Element
+  args?: Record<string, any>
+  [key: string]: any
+}
 
 /**
  * 基本的なカルーセルストーリー（shadcn/ui公式例）

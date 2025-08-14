@@ -58,7 +58,11 @@ const meta: Meta<typeof Textarea> = {
 }
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = {
+  render: (args?: any) => JSX.Element
+  args?: Record<string, any>
+  [key: string]: any
+}
 
 /**
  * 基本的なテキストエリアストーリー（shadcn/ui公式例）

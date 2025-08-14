@@ -39,7 +39,11 @@ const meta: Meta<typeof Slider> = {
 }
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = {
+  render: (args?: any) => JSX.Element
+  args?: Record<string, any>
+  [key: string]: any
+}
 
 /**
  * 基本的なスライダーストーリー（公式サイトと同じ）
@@ -68,6 +72,9 @@ export const Range: Story = {
     step: 1,
     className: "w-[60%]",
   },
+  render: (args) => (
+    <Slider {...args} />
+  ),
 }
 
 /**
@@ -159,6 +166,9 @@ export const Disabled: Story = {
     disabled: true,
     className: "w-[60%]",
   },
+  render: (args) => (
+    <Slider {...args} />
+  ),
 }
 
 /**
@@ -172,6 +182,9 @@ export const CustomRange: Story = {
     step: 5,
     className: "w-[60%]",
   },
+  render: (args) => (
+    <Slider {...args} />
+  ),
 }
 
 /**
@@ -184,6 +197,9 @@ export const LargeSteps: Story = {
     step: 10,
     className: "w-[60%]",
   },
+  render: (args) => (
+    <Slider {...args} />
+  ),
 }
 
 /**
@@ -334,6 +350,9 @@ export const CustomStyling: Story = {
     step: 1,
     className: "w-[60%] [&>div]:bg-semantic-accent/40 [&>div>div]:bg-semantic-accent [&>div>div+div]:bg-semantic-accent/20 [&>div>div+div]:border-semantic-accent",
   },
+  render: (args) => (
+    <Slider {...args} />
+  ),
 }
 
 /**
@@ -346,6 +365,9 @@ export const SmallSize: Story = {
     step: 1,
     className: "w-[60%] [&>div]:h-1 [&>div>div+div]:size-3",
   },
+  render: (args) => (
+    <Slider {...args} />
+  ),
 }
 
 /**
@@ -358,6 +380,9 @@ export const LargeSize: Story = {
     step: 1,
     className: "w-[60%] [&>div]:h-3 [&>div>div+div]:size-6",
   },
+  render: (args) => (
+    <Slider {...args} />
+  ),
 }
 
 /**
@@ -371,4 +396,7 @@ export const Vertical: Story = {
     orientation: "vertical",
     className: "h-64",
   },
+  render: (args) => (
+    <Slider {...args} />
+  ),
 } 

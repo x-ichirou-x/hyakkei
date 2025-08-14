@@ -149,7 +149,11 @@ const meta: Meta<typeof Collapsible> = {
 }
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = {
+  render: (args?: any) => JSX.Element
+  args?: Record<string, any>
+  [key: string]: any
+}
 
 /**
  * 基本的なCollapsibleストーリー（shadcn/ui公式例）

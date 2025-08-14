@@ -65,7 +65,11 @@ const meta: Meta<typeof Calendar> = {
 }
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = {
+  render: (args?: any) => JSX.Element
+  args?: Record<string, any>
+  [key: string]: any
+}
 
 /**
  * 基本的なカレンダーストーリー（shadcn/ui公式例）
@@ -111,10 +115,7 @@ export const Simple: Story = {
  */
 export const Range: Story = {
   render: () => {
-    const [date, setDate] = React.useState<{
-      from: Date
-      to: Date | undefined
-    } | undefined>({
+    const [date, setDate] = React.useState<DateRange | undefined>({
       from: new Date(2024, 1, 20),
       to: new Date(2024, 1, 25),
     })
@@ -235,7 +236,7 @@ export const EventCalendar: Story = {
 
     const modifiersStyles = {
       event: "bg-semantic-accent/10 text-semantic-accent font-semibold",
-    }
+    } as const
 
     return (
       <div className="space-y-4">
@@ -250,7 +251,6 @@ export const EventCalendar: Story = {
           selected={date}
           onSelect={setDate}
           modifiers={modifiers}
-          modifiersStyles={modifiersStyles}
           className="rounded-lg border"
         />
       </div>
@@ -289,7 +289,7 @@ export const BookingCalendar: Story = {
     const modifiersStyles = {
       booked: "bg-semantic-danger/10 text-semantic-danger font-semibold",
       available: "bg-semantic-success/10 text-semantic-success font-semibold",
-    }
+    } as const
 
     return (
       <Card className="w-full max-w-md">
@@ -315,7 +315,6 @@ export const BookingCalendar: Story = {
             selected={date}
             onSelect={setDate}
             modifiers={modifiers}
-            modifiersStyles={modifiersStyles}
             className="rounded-lg border"
           />
           {date && (

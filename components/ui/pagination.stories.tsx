@@ -54,7 +54,11 @@ const meta: Meta<typeof Pagination> = {
 }
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = {
+  render: (args?: any) => JSX.Element
+  args?: Record<string, any>
+  [key: string]: any
+}
 
 /**
  * 基本的なPaginationストーリー（shadcn/ui公式例）

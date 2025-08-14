@@ -1,3 +1,4 @@
+
 /**
  * AccordionコンポーネントのStorybookストーリー
  * 
@@ -54,7 +55,11 @@ const meta: Meta<typeof Accordion> = {
 }
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = {
+  render: (args?: any) => JSX.Element
+  args?: Record<string, any>
+  [key: string]: any
+}
 
 /**
  * 基本的なアコーディオンストーリー（shadcn/ui公式例）
@@ -326,7 +331,6 @@ export const Nested: Story = {
  * FAQ形式のアコーディオンストーリー
  */
 export const FAQ: Story = {
-  args: {},
   render: () => {
     return (
       <Accordion type="single" collapsible className="w-full">

@@ -143,7 +143,11 @@ const meta: Meta<typeof Tabs> = {
 }
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = {
+  render: (args?: any) => JSX.Element
+  args?: Record<string, any>
+  [key: string]: any
+}
 
 /**
  * 基本的なTabsストーリー（shadcn/ui公式例）

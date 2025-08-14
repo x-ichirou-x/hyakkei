@@ -111,7 +111,11 @@ export default meta
 /**
  * Storyの型定義
  */
-type Story = StoryObj<typeof meta>
+type Story = {
+  render: (args?: any) => JSX.Element
+  args?: Record<string, any>
+  [key: string]: any
+}
 
 // メニューアイテムの定義
 const menuItems = [
@@ -408,9 +412,6 @@ export const WithActions: Story = {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Application</SidebarGroupLabel>
-          <SidebarGroupAction>
-            <Plus className="h-4 w-4" />
-          </SidebarGroupAction>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (

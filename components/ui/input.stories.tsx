@@ -56,7 +56,11 @@ export default meta
 /**
  * Storyの型定義
  */
-type Story = StoryObj<typeof meta>
+type Story = {
+  render: (args?: any) => JSX.Element
+  args?: Record<string, any>
+  [key: string]: any
+}
 
 /**
  * デフォルトの入力フィールドストーリー
@@ -66,10 +70,13 @@ export const Default: Story = {
     type: "text",
     placeholder: "テキストを入力してください",
     disabled: false,
-    onChange: (e) => console.log("text changed:", e.target.value),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => console.log("text changed:", e.target.value),
     onFocus: () => console.log("text focused"),
     onBlur: () => console.log("text blurred"),
   },
+  render: (args) => (
+    <Input {...args} />
+  ),
 }
 
 /**
@@ -80,10 +87,13 @@ export const Email: Story = {
     type: "email",
     placeholder: "example@email.com",
     disabled: false,
-    onChange: (e) => console.log("email changed:", e.target.value),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => console.log("email changed:", e.target.value),
     onFocus: () => console.log("email focused"),
     onBlur: () => console.log("email blurred"),
   },
+  render: (args) => (
+    <Input {...args} />
+  ),
 }
 
 /**
@@ -94,10 +104,13 @@ export const Password: Story = {
     type: "password",
     placeholder: "パスワードを入力してください",
     disabled: false,
-    onChange: (e) => console.log("password changed:", e.target.value),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => console.log("password changed:", e.target.value),
     onFocus: () => console.log("password focused"),
     onBlur: () => console.log("password blurred"),
   },
+  render: (args) => (
+    <Input {...args} />
+  ),
 }
 
 /**
@@ -108,10 +121,13 @@ export const Number: Story = {
     type: "number",
     placeholder: "数値を入力してください",
     disabled: false,
-    onChange: (e) => console.log("number changed:", e.target.value),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => console.log("number changed:", e.target.value),
     onFocus: () => console.log("number focused"),
     onBlur: () => console.log("number blurred"),
   },
+  render: (args) => (
+    <Input {...args} />
+  ),
 }
 
 /**
@@ -122,10 +138,13 @@ export const Tel: Story = {
     type: "tel",
     placeholder: "電話番号を入力してください",
     disabled: false,
-    onChange: (e) => console.log("tel changed:", e.target.value),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => console.log("tel changed:", e.target.value),
     onFocus: () => console.log("tel focused"),
     onBlur: () => console.log("tel blurred"),
   },
+  render: (args) => (
+    <Input {...args} />
+  ),
 }
 
 /**
@@ -136,10 +155,13 @@ export const Url: Story = {
     type: "url",
     placeholder: "https://example.com",
     disabled: false,
-    onChange: (e) => console.log("url changed:", e.target.value),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => console.log("url changed:", e.target.value),
     onFocus: () => console.log("url focused"),
     onBlur: () => console.log("url blurred"),
   },
+  render: (args) => (
+    <Input {...args} />
+  ),
 }
 
 /**
@@ -150,10 +172,13 @@ export const Search: Story = {
     type: "search",
     placeholder: "検索キーワードを入力してください",
     disabled: false,
-    onChange: (e) => console.log("search changed:", e.target.value),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => console.log("search changed:", e.target.value),
     onFocus: () => console.log("search focused"),
     onBlur: () => console.log("search blurred"),
   },
+  render: (args) => (
+    <Input {...args} />
+  ),
 }
 
 /**
@@ -164,10 +189,13 @@ export const Disabled: Story = {
     type: "text",
     placeholder: "無効化された入力フィールド",
     disabled: true,
-    onChange: (e) => console.log("disabled changed:", e.target.value),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => console.log("disabled changed:", e.target.value),
     onFocus: () => console.log("disabled focused"),
     onBlur: () => console.log("disabled blurred"),
   },
+  render: (args) => (
+    <Input {...args} />
+  ),
 }
 
 /**
@@ -178,8 +206,11 @@ export const WithValue: Story = {
     type: "text",
     value: "設定済みの値",
     disabled: false,
-    onChange: (e) => console.log("value changed:", e.target.value),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => console.log("value changed:", e.target.value),
     onFocus: () => console.log("value focused"),
     onBlur: () => console.log("value blurred"),
   },
+  render: (args) => (
+    <Input {...args} />
+  ),
 } 

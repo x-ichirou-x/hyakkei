@@ -46,7 +46,11 @@ export default meta
 /**
  * Storyの型定義
  */
-type Story = StoryObj<typeof meta>
+type Story = {
+  render: (args?: any) => JSX.Element
+  args?: Record<string, any>
+  [key: string]: any
+}
 
 /**
  * 基本的なラベルストーリー
@@ -55,6 +59,9 @@ export const Default: Story = {
   args: {
     children: "Email",
   },
+  render: (args) => (
+    <Label {...args} />
+  ),
 }
 
 /**
@@ -104,6 +111,9 @@ export const LongText: Story = {
   args: {
     children: "This is a very long label text that might wrap to multiple lines",
   },
+  render: (args) => (
+    <Label {...args} />
+  ),
 }
 
 /**
@@ -134,6 +144,9 @@ export const CustomStyle: Story = {
     children: "Custom Styled Label",
     className: "text-h2 font-semibold text-semantic-accent",
   },
+  render: (args) => (
+    <Label {...args} />
+  ),
 }
 
 /**

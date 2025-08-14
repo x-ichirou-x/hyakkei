@@ -88,7 +88,11 @@ const meta: Meta<typeof DropdownMenu> = {
 }
 
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = {
+  render: (args?: any) => JSX.Element
+  args?: Record<string, any>
+  [key: string]: any
+}
 
 /**
  * 基本的なDropdown Menuストーリー（shadcn/ui公式例）

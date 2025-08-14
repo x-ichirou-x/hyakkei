@@ -104,8 +104,6 @@ export default function IdentityUploadPage() {
   return (
     <div className="min-h-screen bg-semantic-bg">
       {/* import: 共通ヘッダー */}
-      {/* @ts-expect-error: next auto import suppressed; using path alias */}
-      {/**/}
       {/* 共通ヘッダー */}
       <MedicalHeader />
       <div className="bg-white border-t"></div>

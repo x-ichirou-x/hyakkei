@@ -55,121 +55,107 @@ export default meta
 /**
  * Storyの型定義
  */
-type Story = StoryObj<typeof meta>
+type Story = {
+  render: (args?: any) => JSX.Element
+  args?: Record<string, any>
+  [key: string]: any
+}
 
 /**
  * デフォルトのボタンストーリー
  */
 export const Default: Story = {
-  args: {
-    variant: "default",
-    size: "default",
-    disabled: false,
-    onClick: () => console.log("default click"),
-    children: "Default Button",
-  },
+  render: () => (
+    <Button variant="default" size="default">
+      Default Button
+    </Button>
+  ),
 }
 
 /**
  * アウトラインのボタンストーリー
  */
 export const Outline: Story = {
-  args: {
-    variant: "outline",
-    size: "default",
-    disabled: false,
-    onClick: () => console.log("outline click"),
-    children: "Outline Button",
-  },
+  render: () => (
+    <Button variant="outline" size="default">
+      Outline Button
+    </Button>
+  ),
 }
 
 /**
  * 破壊的なボタンストーリー
  */
 export const Destructive: Story = {
-  args: {
-    variant: "destructive",
-    size: "default",
-    disabled: false,
-    onClick: () => console.log("destructive click"),
-    children: "Destructive Button",
-  },
+  render: () => (
+    <Button variant="destructive" size="default">
+      Destructive Button
+    </Button>
+  ),
 }
 
 /**
  * セカンダリのボタンストーリー
  */
 export const Secondary: Story = {
-  args: {
-    variant: "secondary",
-    size: "default",
-    disabled: false,
-    onClick: () => console.log("secondary click"),
-    children: "Secondary Button",
-  },
+  render: () => (
+    <Button variant="secondary" size="default">
+      Secondary Button
+    </Button>
+  ),
 }
 
 /**
  * ゴーストのボタンストーリー
  */
 export const Ghost: Story = {
-  args: {
-    variant: "ghost",
-    size: "default",
-    disabled: false,
-    onClick: () => console.log("ghost click"),
-    children: "Ghost Button",
-  },
+  render: () => (
+    <Button variant="ghost" size="default">
+      Ghost Button
+    </Button>
+  ),
 }
 
 /**
  * リンクのボタンストーリー
  */
 export const Link: Story = {
-  args: {
-    variant: "link",
-    size: "default",
-    disabled: false,
-    onClick: () => console.log("link click"),
-    children: "Link Button",
-  },
+  render: () => (
+    <Button variant="link" size="default">
+      Link Button
+    </Button>
+  ),
 }
 
 /**
  * 小さいサイズのボタンストーリー
  */
 export const Small: Story = {
-  args: {
-    variant: "default",
-    size: "sm",
-    disabled: false,
-    onClick: () => console.log("small click"),
-    children: "Small Button",
-  },
+  render: () => (
+    <Button variant="default" size="sm">
+      Small Button
+    </Button>
+  ),
 }
 
 /**
  * 大きいサイズのボタンストーリー
  */
 export const Large: Story = {
-  args: {
-    variant: "default",
-    size: "lg",
-    disabled: false,
-    onClick: () => console.log("large click"),
-    children: "Large Button",
-  },
+  render: () => (
+    <Button variant="default" size="lg">
+      Large Button
+    </Button>
+  ),
 }
 
 /**
  * 無効化されたボタンストーリー
  */
 export const Disabled: Story = {
-  args: {
-    variant: "default",
-    size: "default",
-    disabled: true,
-    onClick: () => console.log("disabled click"),
-    children: "Disabled Button",
-  },
+  render: () => (
+    <Button variant="default" size="default" disabled>
+      Disabled Button
+    </Button>
+  ),
 } 

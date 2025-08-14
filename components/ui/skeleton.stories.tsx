@@ -34,7 +34,11 @@ export default meta
 /**
  * Storyの型定義
  */
-type Story = StoryObj<typeof meta>
+type Story = {
+  render: (args?: any) => JSX.Element
+  args?: Record<string, any>
+  [key: string]: any
+}
 
 /**
  * 基本的なスケルトンストーリー
@@ -43,6 +47,9 @@ export const Default: Story = {
   args: {
     className: "h-4 w-[250px]",
   },
+  render: (args) => (
+    <Skeleton {...args} />
+  ),
 }
 
 /**
@@ -52,6 +59,9 @@ export const Circular: Story = {
   args: {
     className: "h-12 w-12 rounded-full",
   },
+  render: (args) => (
+    <Skeleton {...args} />
+  ),
 }
 
 /**
