@@ -1,0 +1,411 @@
+/**
+ * デザイントンマナガイドに基づくCSS変数定義
+ * 
+ * @author Medical Insurance System
+ * @version 1.0.0
+ * @description CSSデザイントンマナガイドに準拠したデザインシステム変数
+ */
+
+:root {
+  /* ========================================
+   * カラートークン
+   * ======================================== */
+  
+  /* セマンティックカラー */
+  --color-bg: #FFFFFF;           /* ページ/カード背景 */
+  --color-fg: #222222;           /* 主要テキスト */
+  --color-fg-subtle: #666666;    /* 補足テキスト */
+  --color-border: #E5E7EB;       /* 枠線・区切り */
+  --color-brand: #005BAC;        /* ブランド */
+  --color-accent: #0A74DA;       /* 強調CTA */
+  --color-success: #2E7D32;      /* 完了/OK */
+  --color-warning: #F59E0B;      /* 注意 */
+  --color-danger: #D32F2F;       /* エラー */
+  
+  /* 拡張カラー */
+  --color-border-dark: #D1D5DB;  /* 濃い枠線（特例許可） */
+  --color-table-header: #F9FAFB; /* テーブルヘッダー背景 */
+  --color-skeleton: #F3F4F6;     /* スケルトン背景 */
+  --color-alert-success: #ECFDF5; /* 成功アラート背景 */
+  --color-alert-warning: #FFFBEB; /* 警告アラート背景 */
+  --color-alert-danger: #FEF2F2;  /* エラーアラート背景 */
+  
+  /* ========================================
+   * タイポグラフィ
+   * ======================================== */
+  
+  /* フォントサイズ */
+  --font-h1: 24px;      /* 画面タイトル */
+  --font-h2: 20px;      /* セクション */
+  --font-body: 16px;    /* 本文/入力ラベル */
+  --font-caption: 14px; /* 補足/ヘルプ */
+  --font-display: 28px; /* LP用（例外規定） */
+  
+  /* フォントウェイト */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* 行間 */
+  --line-height-heading: 1.3;  /* 見出し */
+  --line-height-body: 1.6;     /* 本文 */
+  --line-height-caption: 1.5;  /* 補足 */
+  
+  /* ========================================
+   * スペーシング（8pxグリッド）
+   * ======================================== */
+  
+  --space-base: 8px;
+  --space-1: 8px;   /* アイコン/小要素間 */
+  --space-2: 12px;  /* ラベルと入力欄間 */
+  --space-3: 16px;  /* 要素間の基本 */
+  --space-4: 24px;  /* セクション間の基本 */
+  --space-5: 32px;  /* 大見出し後 */
+  --space-6: 40px;  /* ヒーロー/大区切り */
+  
+  /* ========================================
+   * レイアウト
+   * ======================================== */
+  
+  /* コンテナ */
+  --container-max-width: 1120px;
+  --container-padding: 16px;
+  
+  /* グリッド */
+  --grid-columns: 12;
+  --grid-gutter: 16px;
+  
+  /* ブレークポイント */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  
+  /* 最大幅 */
+  --max-width-content: 72ch; /* 72-80字推奨 */
+  
+  /* ========================================
+   * コーナー・影
+   * ======================================== */
+  
+  /* 角丸 */
+  --radius-sm: 8px;   /* 入力部品、タグ */
+  --radius-md: 12px;  /* カード、モーダル */
+  --radius-lg: 16px;  /* ヒーロー/大型カード */
+  
+  /* 影 */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.06);   /* ボタン/小要素 */
+  --shadow-md: 0 2px 8px rgba(0,0,0,.08);   /* カード */
+  --shadow-lg: 0 6px 20px rgba(0,0,0,.12);  /* モーダル */
+  
+  /* ========================================
+   * インタラクション
+   * ======================================== */
+  
+  /* トランジション */
+  --transition-duration-fast: 150ms;
+  --transition-duration-normal: 200ms;
+  --transition-duration-slow: 250ms;
+  --transition-easing: cubic-bezier(.2,.8,.2,1);
+  
+  /* フォーカス */
+  --focus-outline: 2px solid rgba(0,91,172,.4);
+  --focus-offset: 2px;
+  
+  /* ホバー効果 */
+  --hover-opacity-change: 0.08; /* 5-8%の明度変化 */
+  
+  /* ========================================
+   * コンポーネント規格
+   * ======================================== */
+  
+  /* ボタン */
+  --button-height: 44px;
+  --button-padding-horizontal: 16px;
+  --button-padding-horizontal-with-icon: 12px;
+  --button-icon-size: 20px;
+  --button-radius: var(--radius-md);
+  --button-shadow: var(--shadow-sm);
+  
+  /* 入力フィールド */
+  --input-height: 44px;
+  --input-radius: var(--radius-sm);
+  --input-border: 1px;
+  --input-padding-horizontal: 16px;
+  --input-padding-vertical: 12px;
+  
+  /* カード */
+  --card-padding: 32px;
+  --card-radius: var(--radius-md);
+  --card-shadow: var(--shadow-md);
+  --card-spacing: 16px;
+  
+  /* モーダル */
+  --modal-width: min(640px, 90vw);
+  --modal-radius: var(--radius-md);
+  --modal-shadow: var(--shadow-lg);
+  --modal-padding-header: 24px;
+  --modal-padding-body: 24px;
+  --modal-padding-footer: 16px;
+  
+  /* アラート */
+  --alert-padding: 16px;
+  --alert-radius: var(--radius-sm);
+  
+  /* テーブル */
+  --table-row-height: 44px;
+  --table-header-background: var(--color-table-header);
+  --table-border: 1px;
+  --table-hover-opacity: 0.02;
+  
+  /* ========================================
+   * Z-Index
+   * ======================================== */
+  
+  --z-base: 0;        /* 基本要素 */
+  --z-header: 10;     /* 固定ヘッダ */
+  --z-dropdown: 20;   /* ドロップダウン等 */
+  --z-modal: 30;      /* 最前面 */
+  
+  /* ========================================
+   * フォーム構造
+   * ======================================== */
+  
+  --form-input-group-spacing: 16px;    /* 入力要素間 */
+  --form-section-group-spacing: 24px;  /* セクション間 */
+  --form-required-symbol: '*';
+  --form-required-color: var(--color-danger);
+}
+
+/* ========================================
+ * ユーティリティクラス
+ * ======================================== */
+
+/* カラー背景 */
+.bg-semantic-bg { background-color: var(--color-bg); }
+.bg-semantic-fg { background-color: var(--color-fg); }
+.bg-semantic-fg-subtle { background-color: var(--color-fg-subtle); }
+.bg-semantic-border { background-color: var(--color-border); }
+.bg-semantic-brand { background-color: var(--color-brand); }
+.bg-semantic-accent { background-color: var(--color-accent); }
+.bg-semantic-success { background-color: var(--color-success); }
+.bg-semantic-warning { background-color: var(--color-warning); }
+.bg-semantic-danger { background-color: var(--color-danger); }
+/* テーブル/ラベル用の淡色背景 */
+.bg-table-header { background-color: var(--color-table-header); }
+
+/* カラーテキスト */
+.text-semantic-bg { color: var(--color-bg); }
+.text-semantic-fg { color: var(--color-fg); }
+.text-semantic-fg-subtle { color: var(--color-fg-subtle); }
+.text-semantic-border { color: var(--color-border); }
+.text-semantic-brand { color: var(--color-brand); }
+.text-semantic-accent { color: var(--color-accent); }
+.text-semantic-success { color: var(--color-success); }
+.text-semantic-warning { color: var(--color-warning); }
+.text-semantic-danger { color: var(--color-danger); }
+
+/* ボーダー */
+.border-semantic-border { border-color: var(--color-border); }
+.border-semantic-brand { border-color: var(--color-brand); }
+.border-semantic-accent { border-color: var(--color-accent); }
+.border-semantic-success { border-color: var(--color-success); }
+.border-semantic-warning { border-color: var(--color-warning); }
+.border-semantic-danger { border-color: var(--color-danger); }
+
+/* フォントサイズ */
+.text-h1 { font-size: var(--font-h1); font-weight: var(--font-weight-semibold); line-height: var(--line-height-heading); }
+.text-h2 { font-size: var(--font-h2); font-weight: var(--font-weight-semibold); line-height: var(--line-height-heading); }
+.text-body { font-size: var(--font-body); font-weight: var(--font-weight-normal); line-height: var(--line-height-body); }
+.text-caption { font-size: var(--font-caption); font-weight: var(--font-weight-normal); line-height: var(--line-height-caption); }
+.text-display { font-size: var(--font-display); font-weight: var(--font-weight-semibold); line-height: var(--line-height-heading); }
+
+/* スペーシング */
+.space-1 { gap: var(--space-1); }
+.space-2 { gap: var(--space-2); }
+.space-3 { gap: var(--space-3); }
+.space-4 { gap: var(--space-4); }
+.space-5 { gap: var(--space-5); }
+.space-6 { gap: var(--space-6); }
+
+/* パディング */
+.p-1 { padding: var(--space-1); }
+.p-2 { padding: var(--space-2); }
+.p-3 { padding: var(--space-3); }
+.p-4 { padding: var(--space-4); }
+.p-5 { padding: var(--space-5); }
+.p-6 { padding: var(--space-6); }
+
+/* マージン */
+.m-1 { margin: var(--space-1); }
+.m-2 { margin: var(--space-2); }
+.m-3 { margin: var(--space-3); }
+.m-4 { margin: var(--space-4); }
+.m-5 { margin: var(--space-5); }
+.m-6 { margin: var(--space-6); }
+
+/* 角丸 */
+.rounded-sm { border-radius: var(--radius-sm); }
+.rounded-md { border-radius: var(--radius-md); }
+.rounded-lg { border-radius: var(--radius-lg); }
+
+/* 影 */
+.shadow-sm { box-shadow: var(--shadow-sm); }
+.shadow-md { box-shadow: var(--shadow-md); }
+.shadow-lg { box-shadow: var(--shadow-lg); }
+
+/* トランジション */
+.transition-fast { transition-duration: var(--transition-duration-fast); transition-timing-function: var(--transition-easing); }
+.transition-normal { transition-duration: var(--transition-duration-normal); transition-timing-function: var(--transition-easing); }
+.transition-slow { transition-duration: var(--transition-duration-slow); transition-timing-function: var(--transition-easing); }
+
+/* フォーカス */
+.focus-ring:focus {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+}
+
+/* コンポーネント */
+.button-standard {
+  height: var(--button-height);
+  padding: 0 var(--button-padding-horizontal);
+  border-radius: var(--button-radius);
+  box-shadow: var(--button-shadow);
+  transition: all var(--transition-duration-normal) var(--transition-easing);
+}
+
+.input-standard {
+  height: var(--input-height);
+  padding: var(--input-padding-vertical) var(--input-padding-horizontal);
+  border: var(--input-border) solid var(--color-border);
+  border-radius: var(--input-radius);
+  transition: all var(--transition-duration-normal) var(--transition-easing);
+}
+
+.input-standard:focus {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
+  border-color: var(--color-brand);
+}
+
+.card-standard {
+  padding: var(--card-padding);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  background-color: var(--color-bg);
+}
+
+.modal-standard {
+  width: var(--modal-width);
+  border-radius: var(--modal-radius);
+  box-shadow: var(--modal-shadow);
+}
+
+.alert-standard {
+  padding: var(--alert-padding);
+  border-radius: var(--alert-radius);
+}
+
+.table-standard {
+  border-collapse: collapse;
+}
+
+.table-standard th {
+  background-color: var(--table-header-background);
+  height: var(--table-row-height);
+  border: var(--table-border) solid var(--color-border);
+}
+
+.table-standard td {
+  height: var(--table-row-height);
+  border: var(--table-border) solid var(--color-border);
+}
+
+.table-standard tr:hover {
+  background-color: rgba(0,0,0,var(--table-hover-opacity));
+}
+
+/* ========================================
+ * Stepper（進捗バー）ユーティリティ
+ * ======================================== */
+
+/* 画面幅に応じて自動スケール（既定） */
+.stepper-root {
+  /* バブル直径、番号フォント、ラベルフォント、矢印幅 */
+  --stepper-bubble: clamp(28px, 6vw, 36px);
+  --stepper-number-font: clamp(14px, 3.5vw, 16px);
+  --stepper-label-font: clamp(10px, 2.8vw, 12px);
+  --stepper-arrow: clamp(12px, 3.2vw, 16px);
+}
+
+/* 固定スケール指定（sizeプロパティ用） */
+.stepper-root[data-size="sm"] {
+  --stepper-bubble: 28px;
+  --stepper-number-font: 14px;
+  --stepper-label-font: 11px;
+  --stepper-arrow: 12px;
+}
+
+.stepper-root[data-size="md"] {
+  --stepper-bubble: 32px;
+  --stepper-number-font: 16px;
+  --stepper-label-font: 12px;
+  --stepper-arrow: 14px;
+}
+
+.stepper-root[data-size="lg"] {
+  --stepper-bubble: 40px;
+  --stepper-number-font: 18px;
+  --stepper-label-font: 13px;
+  --stepper-arrow: 16px;
+}
+
+/* 要素別サイズ適用 */
+.stepper-root .step-row { height: var(--stepper-bubble); }
+.stepper-root .step-badge-cell { width: var(--stepper-bubble); }
+.stepper-root .step-bubble {
+  width: var(--stepper-bubble);
+  height: var(--stepper-bubble);
+  font-size: var(--stepper-number-font);
+}
+.stepper-root .step-arrow { width: var(--stepper-arrow); height: auto; }
+.stepper-root .step-label-block {
+  width: calc(var(--stepper-bubble) * 2);
+  font-size: var(--stepper-label-font);
+}
+
+/* フォーム */
+.form-input-group > * + * {
+  margin-top: var(--form-input-group-spacing);
+}
+
+.form-section-group > * + * {
+  margin-top: var(--form-section-group-spacing);
+}
+
+.form-required::after {
+  content: var(--form-required-symbol);
+  color: var(--form-required-color);
+  margin-left: 4px;
+}
+
+/* レスポンシブ */
+@media (max-width: 640px) {
+  .container-responsive {
+    padding-left: var(--container-padding);
+    padding-right: var(--container-padding);
+  }
+  /* モバイルではカード内パディングを圧縮して可読幅を確保 */
+  .card-standard {
+    padding: 32px 12px;
+  }
+}
+
+@media (min-width: 641px) {
+  .container-responsive {
+    max-width: var(--container-max-width);
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
