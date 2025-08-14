@@ -1,8 +1,8 @@
 /**
- * メインページ
+ * 保険サービス総合トップページ
  * 
- * 音量制御と明度調整のデモアプリケーション
- * Noto Sans JPフォント対応版
+ * 医療保険、外貨建て、変額、年金などの各種保険サービスの紹介
+ * 既存のデザイントークンとコンポーネントを使用した統一感のあるデザイン
  * 
  * @author Medical Insurance System
  * @version 2.0.0
@@ -11,105 +11,197 @@
 "use client"
 
 import { useState } from "react"
- 
-import { Slider } from "@/components/ui/slider"
-import { Volume2, VolumeX } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { 
+  Shield, 
+  Heart, 
+  TrendingUp, 
+  Globe, 
+  Calculator, 
+  ArrowRight,
+  CheckCircle,
+  Clock,
+  Users,
+  Star
+} from "lucide-react"
 
 export default function Home() {
-  const [volume, setVolume] = useState([70])
-  const [isMuted, setIsMuted] = useState(false)
+  const [activeService, setActiveService] = useState<string | null>(null)
 
-  const handleVolumeChange = (value: number[]) => {
-    setVolume(value)
-    if (value[0] === 0) {
-      setIsMuted(true)
-    } else {
-      setIsMuted(false)
+  /**
+   * サービス一覧の定義
+   * 現在実装済みの医療保険と将来実装予定のサービスを含む
+   */
+  const services = [
+    {
+      id: "medical",
+      title: "医療保険",
+      description: "入院・手術・通院時の医療費をサポートする保険",
+      icon: Heart,
+      status: "available",
+      features: ["入院給付金", "手術給付金", "通院給付金", "特約選択可能"],
+      path: "/medical",
+      color: "text-semantic-success"
+    },
+    {
+      id: "foreign",
+      title: "外貨建て保険",
+      description: "為替変動を活用した資産形成と保障の両立",
+      icon: Globe,
+      status: "coming-soon",
+      features: ["為替変動活用", "資産形成", "死亡保障", "満期保険金"],
+      path: "#",
+      color: "text-semantic-accent"
+    },
+    {
+      id: "variable",
+      title: "変額保険",
+      description: "投資成果に応じて保険金額が変動する保険",
+      icon: TrendingUp,
+      status: "coming-soon",
+      features: ["投資連動", "保険金額変動", "死亡保障", "運用成果"],
+      path: "#",
+      color: "text-semantic-warning"
+    },
+    {
+      id: "annuity",
+      title: "年金保険",
+      description: "老後の生活を支える安定した年金収入",
+      icon: Calculator,
+      status: "coming-soon",
+      features: ["老後保障", "年金収入", "積立運用", "税制優遇"],
+      path: "#",
+      color: "text-semantic-brand"
     }
-  }
+  ]
 
-  const toggleMute = () => {
-    if (isMuted) {
-      setVolume([70])
-      setIsMuted(false)
+  /**
+   * 特徴・メリットの定義
+   */
+  const features = [
+    {
+      icon: Shield,
+      title: "安心・信頼性",
+      description: "長年の実績と専門知識でお客様の安心をサポート"
+    },
+    {
+      icon: Clock,
+      title: "簡単手続き",
+      description: "Web完結で時間を選ばず手続き可能"
+    },
+    {
+      icon: Users,
+      title: "専門サポート",
+      description: "保険の専門家が丁寧にサポートいたします"
+    },
+    {
+      icon: Star,
+      title: "柔軟なプラン",
+      description: "お客様一人ひとりに最適なプランをご提案"
+    }
+  ]
+
+  /**
+   * サービスカードのクリックハンドラー
+   * @param serviceId サービスID
+   */
+  const handleServiceClick = (serviceId: string) => {
+    if (serviceId === "medical") {
+      window.location.href = "/medical"
     } else {
-      setVolume([0])
-      setIsMuted(true)
+      setActiveService(serviceId)
     }
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-8 p-8 bg-semantic-bg">
-      <h1 className={`text-display font-semibold text-semantic-fg mb-8`}>Hello World</h1>
-      
-      <div className="w-full max-w-md space-y-6">
-        <div className="card-standard">
-          <h2 className={`text-h2 font-semibold mb-4 text-semantic-fg`}>音量制御</h2>
-          
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className={`text-caption text-semantic-fg-subtle`}>音量: {volume[0]}%</span>
-              <button
-                onClick={toggleMute}
-                className="p-2 rounded-md hover:bg-semantic-accent/10 transition-normal focus-ring"
-                aria-label={isMuted ? "ミュート解除" : "ミュート"}
-              >
-                {isMuted ? (
-                  <VolumeX className="h-4 w-4" />
-                ) : (
-                  <Volume2 className="h-4 w-4" />
-                )}
-              </button>
+    <div className="min-h-screen bg-semantic-bg">
+      {/* ヘッダーセクション */}
+      <header className="border-b border-semantic-border bg-semantic-bg">
+        <div className="container mx-auto px-4 py-4">
+                      <div className="flex items-center justify-center">
+              <h1 className="text-h1 font-semibold text-semantic-fg">サービスのデモ</h1>
             </div>
-            
-            <Slider
-              value={volume}
-              onValueChange={handleVolumeChange}
-              max={100}
-              step={1}
-              className="w-full"
-            />
-            
-            <div className="flex gap-2">
-              <button
-                onClick={() => setVolume([0])}
-                className={`px-3 py-1 text-body border rounded hover:bg-semantic-accent/10 transition-normal focus-ring button-standard`}
-              >
-                ミュート
-              </button>
-              <button
-                onClick={() => setVolume([50])}
-                className={`px-3 py-1 text-body border rounded hover:bg-semantic-accent/10 transition-normal focus-ring button-standard`}
-              >
-                50%
-              </button>
-              <button
-                onClick={() => setVolume([100])}
-                className={`px-3 py-1 text-body border rounded hover:bg-semantic-accent/10 transition-normal focus-ring button-standard`}
-              >
-                最大
-              </button>
-            </div>
-          </div>
         </div>
+      </header>
 
-        <div className="card-standard">
-          <h2 className={`text-h2 font-semibold mb-4 text-semantic-fg`}>明度調整</h2>
-          
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className={`text-caption text-semantic-fg-subtle`}>明度: {volume[0]}%</span>
-            </div>
-            
-            <Slider
-              defaultValue={[50]}
-              max={100}
-              step={1}
-              className="w-full"
-            />
+
+
+      {/* サービス一覧セクション */}
+      <section id="services" className="py-16">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h3 className="text-h2 font-semibold text-semantic-fg mb-4">
+              提供サービス
+            </h3>
+            <p className="text-body text-semantic-fg-subtle max-w-2xl mx-auto">
+              お客様のニーズに合わせて、様々な保険サービスをご用意しております。
+              現在は医療保険のWeb申込がご利用いただけます。
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {services.map((service) => {
+              const IconComponent = service.icon
+              return (
+                <Card 
+                  key={service.id}
+                  className="hover:shadow-lg transition-normal cursor-pointer border-semantic-border"
+                  onClick={() => handleServiceClick(service.id)}
+                >
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <IconComponent className={`h-8 w-8 ${service.color}`} />
+                      {service.status === "available" ? (
+                        <Badge variant="secondary" className="bg-semantic-success/10 text-semantic-success">
+                          利用可能
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="bg-semantic-warning/10 text-semantic-warning">
+                          準備中
+                        </Badge>
+                      )}
+                    </div>
+                    <CardTitle className="text-h3 text-semantic-fg">
+                      {service.title}
+                    </CardTitle>
+                    <CardDescription className="text-body text-semantic-fg-subtle">
+                      {service.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <ul className="space-y-2 mb-4">
+                      {service.features.map((feature, index) => (
+                        <li key={index} className="flex items-center gap-2 text-caption text-semantic-fg-subtle">
+                          <CheckCircle className="h-4 w-4 text-semantic-success" />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+                    {service.status === "available" ? (
+                      <Button className="w-full" onClick={() => window.location.href = service.path}>
+                        詳細を見る
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Button variant="outline" className="w-full" disabled>
+                        準備中
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         </div>
-      </div>
+      </section>
+
+
+
+
+
+
     </div>
-  );
+  )
 }
