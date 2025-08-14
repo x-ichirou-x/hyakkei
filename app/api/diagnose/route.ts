@@ -24,6 +24,16 @@ export async function POST(request: Request) {
     
     // OpenAI APIキーを環境変数から取得
     const apiKey = process.env.OPENAI_API_KEY
+    
+    // デバッグ用ログ（本番環境では削除）
+    console.log('Environment variables check:', {
+      NODE_ENV: process.env.NODE_ENV,
+      AMPLIFY_ENV: process.env.AWS_BRANCH,
+      API_KEY_EXISTS: !!process.env.OPENAI_API_KEY,
+      API_KEY_LENGTH: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.length : 0,
+      API_KEY_PREFIX: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 10) + '...' : 'undefined'
+    })
+    
     if (!apiKey) {
       console.error('OpenAI API key not configured')
       return NextResponse.json(
