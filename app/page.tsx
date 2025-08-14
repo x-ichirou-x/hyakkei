@@ -21,10 +21,7 @@ import {
   Globe, 
   Calculator, 
   ArrowRight,
-  CheckCircle,
-  Clock,
-  Users,
-  Star
+  CheckCircle
 } from "lucide-react"
 
 export default function Home() {
@@ -78,32 +75,6 @@ export default function Home() {
   ]
 
   /**
-   * 特徴・メリットの定義
-   */
-  const features = [
-    {
-      icon: Shield,
-      title: "安心・信頼性",
-      description: "長年の実績と専門知識でお客様の安心をサポート"
-    },
-    {
-      icon: Clock,
-      title: "簡単手続き",
-      description: "Web完結で時間を選ばず手続き可能"
-    },
-    {
-      icon: Users,
-      title: "専門サポート",
-      description: "保険の専門家が丁寧にサポートいたします"
-    },
-    {
-      icon: Star,
-      title: "柔軟なプラン",
-      description: "お客様一人ひとりに最適なプランをご提案"
-    }
-  ]
-
-  /**
    * サービスカードのクリックハンドラー
    * @param serviceId サービスID
    */
@@ -120,13 +91,11 @@ export default function Home() {
       {/* ヘッダーセクション */}
       <header className="border-b border-semantic-border bg-semantic-bg">
         <div className="container mx-auto px-4 py-4">
-                      <div className="flex items-center justify-center">
-              <h1 className="text-h1 font-semibold text-semantic-fg">サービスのデモ</h1>
-            </div>
+          <div className="flex items-center justify-center">
+            <h1 className="text-h1 font-semibold text-semantic-fg">サービスのデモ</h1>
+          </div>
         </div>
       </header>
-
-
 
       {/* サービス一覧セクション */}
       <section id="services" className="py-16">
@@ -196,12 +165,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-
-
-
-
-
     </div>
   )
 }

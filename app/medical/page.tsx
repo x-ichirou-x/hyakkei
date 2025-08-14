@@ -43,6 +43,7 @@ import {
   Menu,
   X,
   MessageCircle,
+  ChevronDown,
 } from "lucide-react"
 import Image from "next/image"
 
@@ -173,6 +174,17 @@ export default function MedicalInsurancePage() {
   const [selectedOptions, setSelectedOptions] = useState<Record<string, Set<string>>>({})
   const selectedOptionsRef = useRef<Record<string, Set<string>>>({})
   
+  // ヘルプの展開状態管理
+  const [expandedHelp, setExpandedHelp] = useState<string | null>(null)
+  
+  /**
+   * ヘルプの展開/折りたたみを切り替え
+   * @param questionId 質問ID
+   */
+  const toggleHelp = useCallback((questionId: string) => {
+    setExpandedHelp(prev => prev === questionId ? null : questionId)
+  }, [])
+  
   // 選択状態の即座更新用の関数（他の処理の影響を受けない）
   const updateSelectionImmediately = useCallback((questionId: string, optionId: string, isMultiSelect: boolean) => {
     const current = selectedOptionsRef.current[questionId] || new Set()
@@ -257,7 +269,8 @@ export default function MedicalInsurancePage() {
         { id: 'advanced_med', label: '先進医療の高額治療費' },
         { id: 'income_drop', label: '生活費が減ること（働けない期間の収入減）' }
       ],
-      info: '複数選択可能です',
+      info: '医療リスクの保障について',
+      helpContent: '医療保険では、入院・手術・通院など様々なリスクに対応できます。複数のリスクを選択することで、より包括的な保障を設計できます。例えば、入院費用だけでなく、手術費用や通院費用も含めることで、治療全体の経済的負担を軽減できます。',
       illustration: '🏥💊'
     },
     {
@@ -272,6 +285,7 @@ export default function MedicalInsurancePage() {
         { id: 'long', label: '長期（何か月も）にも備えたい' }
       ],
       info: '入院期間の保障について',
+      helpContent: '入院期間の保障は、病気やケガの重症度によって大きく変わります。短期間の保障は保険料が安いですが、長期入院が必要になった場合の保障が不足する可能性があります。中期や長期の保障を選ぶことで、より安心な保障を得られます。',
       illustration: '📅🏥'
     },
     {
@@ -286,6 +300,7 @@ export default function MedicalInsurancePage() {
         { id: 'keep_level', label: '普段と変わらない生活水準を維持したい' }
       ],
       info: '生活費の保障レベルについて',
+      helpContent: '入院中は収入が減る一方で、食事代や交通費などの生活費がかかります。最低限の保障では生活が苦しくなる可能性があります。余裕を持った保障を選ぶことで、治療に集中できる環境を整えられます。',
       illustration: '💰🏠'
     },
     {
@@ -299,33 +314,25 @@ export default function MedicalInsurancePage() {
         { id: 'finish_early', label: '働いているうちに払い終えて安心したい' }
       ],
       info: '保険料の支払い方針について',
+      helpContent: '保険料の支払い方針は、現在の経済状況と将来のライフプランによって決まります。毎月の負担を軽くすることで、継続しやすくなります。一方、早期に払い終えることで、老後の負担を軽減できます。',
       illustration: '💳📊'
     },
     {
       id: 'Q5',
       number: 'Q5',
-      question: '保険で優先したいのはどちらですか？',
+      question: '現在の年齢は？',
       highlightedWords: [],
       ui: 'single_choice',
       options: [
-        { id: 'broad', label: '幅広い病気やケガにまんべんなく備える' },
-        { id: 'focused', label: '特定のリスク（がん・特定疾病など）に手厚く備える' }
+        { id: '20s', label: '20代' },
+        { id: '30s', label: '30代' },
+        { id: '40s', label: '40代' },
+        { id: '50s', label: '50代' },
+        { id: '60s', label: '60代以上' }
       ],
-      info: '保障範囲の考え方について',
-      illustration: '🛡️🎯'
-    },
-    {
-      id: 'Q6',
-      number: 'Q6',
-      question: '保険に入る目的はどちらに近いですか？',
-      highlightedWords: [],
-      ui: 'single_choice',
-      options: [
-        { id: 'shock_absorb', label: '万一のときの経済的ショックを減らす' },
-        { id: 'build_ahead', label: '将来のために早めに備えを固める' }
-      ],
-      info: '保険の目的について',
-      illustration: '🎯🔮'
+      info: '年齢による保険料の違いについて',
+      helpContent: '年齢が上がるほど、病気やケガのリスクが高くなり、保険料も高くなります。若いうちに加入することで、より安い保険料で長期間の保障を得られます。また、年齢制限のある特約も利用しやすくなります。',
+      illustration: '🎂📈'
     }
   ]
   
@@ -706,7 +713,64 @@ export default function MedicalInsurancePage() {
       setCurrentQuestion(nextQuestionIndex)
     } else {
       // 最後の質問に回答した場合の処理
-      setCurrentQuestion(-1) // 結果表示モード
+      executeAIDiagnosis()
+    }
+  }
+
+  /**
+   * OpenAI APIを使用してAI診断を実行
+   */
+  const executeAIDiagnosis = async () => {
+    try {
+      // ローディング状態を開始
+      setCurrentQuestion(-2) // -2はローディング状態を示す
+      
+      // 回答を整理
+      const answers = Object.entries(userAnswers).map(([questionId, answer]) => {
+        const question = questions.find(q => q.id === questionId)
+        return `${question?.question}: ${Array.isArray(answer) ? answer.join(', ') : answer}`
+      }).join('\n')
+
+      // OpenAI APIにリクエスト
+      const response = await fetch('/api/diagnose', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          answers: answers,
+          userAnswers: userAnswers,
+          context: 'medical_insurance' // 医療保険専用の診断であることを示す
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('AI診断の実行に失敗しました')
+      }
+
+      const result = await response.json()
+      
+      // 診断結果を保存
+      setChatMessages(prev => [...prev, {
+        id: `ai-${Date.now()}`,
+        type: 'ai',
+        content: result.diagnosis,
+        timestamp: new Date()
+      }])
+      
+      // 結果表示モードに切り替え
+      setCurrentQuestion(-1)
+      
+    } catch (error) {
+      console.error('AI診断エラー:', error)
+      // エラーメッセージを表示
+      setChatMessages(prev => [...prev, {
+        id: `error-${Date.now()}`,
+        type: 'ai',
+        content: '診断の実行中にエラーが発生しました。もう一度お試しください。',
+        timestamp: new Date()
+      }])
+      setCurrentQuestion(-1)
     }
   }
 
@@ -715,6 +779,225 @@ export default function MedicalInsurancePage() {
    */
   const handleUserAnswer = (answer: string) => {
     // この関数は使用しない
+  }
+
+  /**
+   * 診断をリセット
+   */
+  const resetDiagnosis = () => {
+    setCurrentQuestion(0)
+    setUserAnswers({})
+    setChatMessages([])
+  }
+
+  /**
+   * AI診断結果から診断理由を抽出
+   * @param content AI診断結果の全文
+   * @returns 診断理由の部分
+   */
+  const extractDiagnosisReason = (content: string): string => {
+    // 診断理由の部分を抽出（1. 診断理由の部分）
+    const reasonMatch = content.match(/1\.\s*診断理由\s*\n([\s\S]*?)(?=\n\n2\.|$)/)
+    if (reasonMatch) {
+      // 文字数制限の説明を削除
+      let reason = reasonMatch[1].trim()
+      reason = reason.replace(/（約200文字）|（200文字程度）|\(約200文字\)|\(200文字程度\)|（200文字）|\(200文字\)/g, '')
+      reason = reason.replace(/約200文字|200文字程度|200文字/g, '')
+      return reason
+    }
+    
+    // マッチしない場合は最初の段落を返す
+    const firstParagraph = content.split('\n\n')[0]
+    return firstParagraph || content
+  }
+
+  /**
+   * AI診断結果から提案のプランを抽出
+   * @param content AI診断結果の全文
+   * @returns 提案のプランの部分
+   */
+  const extractRecommendedPlan = (content: string): string => {
+    // 提案のプランの部分を抽出（2. 推奨プラン と 3. 保障内容の詳細 の部分）
+    const planMatch = content.match(/2\.\s*提案プラン\s*\n([\s\S]*?)(?=\n\n4\.|$)/)
+    if (planMatch) {
+      return planMatch[1].trim()
+    }
+    
+    // マッチしない場合は2番目の段落を返す
+    const paragraphs = content.split('\n\n')
+    if (paragraphs.length > 1) {
+      return paragraphs[1] || content
+    }
+    
+    return content
+  }
+
+  /**
+   * 提案プランの内容をHTML形式で整形
+   * @param content 提案プランの内容
+   * @returns HTML形式で整形された内容
+   */
+  const formatRecommendedPlan = (content: string): string => {
+    if (!content) return ''
+    
+    // プラン名を強調
+    let formatted = content.replace(/\*\*プラン名\*\*:\s*(.+)/, '<h5 class="font-bold text-green-700 mb-2">$1</h5>')
+    
+    // 主契約セクションを整形
+    formatted = formatted.replace(/\*\*主契約\*\*:/, '<h6 class="font-semibold text-gray-800 mb-2">主契約</h6>')
+    
+    // 推奨特約セクションを整形
+    formatted = formatted.replace(/\*\*推奨特約\*\*:/, '<h6 class="font-semibold text-gray-800 mb-2">推奨特約</h6>')
+    
+    // 月額保険料を強調
+    formatted = formatted.replace(/\*\*月額保険料\*\*:\s*(.+)/, '<div class="bg-blue-50 border border-blue-200 rounded p-2"><span class="font-semibold text-blue-800">月額保険料:</span> $1</div>')
+    
+    // おすすめの理由を強調
+    formatted = formatted.replace(/\*\*このプランがおすすめの理由\*\*:\s*(.+)/, '<div class="bg-yellow-50 border border-yellow-200 rounded p-2 mt-3"><span class="font-semibold text-yellow-800">おすすめの理由:</span> $1</div>')
+    
+    // リスト項目を整形
+    formatted = formatted.replace(/^\s*-\s*(.+)$/gm, '<li class="ml-4">$1</li>')
+    formatted = formatted.replace(/(<li.*<\/li>)/, '<ul class="list-disc space-y-1">$1</ul>')
+    
+    // 改行を適切に処理
+    formatted = formatted.replace(/\n/g, '<br>')
+    
+    return formatted
+  }
+
+  /**
+   * AI診断結果をプラン選択画面に適用
+   */
+  const applyAIPlanToSelection = () => {
+    if (chatMessages.length === 0) return
+    
+    const lastMessage = chatMessages[chatMessages.length - 1]
+    if (lastMessage.type !== 'ai') return
+    
+    const content = lastMessage.content
+    
+    try {
+      // 主契約の設定を抽出して適用
+      applyMainContractSettings(content)
+      
+      // 特約の設定を抽出して適用
+      applyRiderSettings(content)
+      
+      // 成功メッセージを表示（オプション）
+      console.log('AI診断結果がプラン選択画面に適用されました')
+      
+    } catch (error) {
+      console.error('プラン適用エラー:', error)
+    }
+  }
+
+  /**
+   * 主契約の設定を抽出して適用
+   * @param content AI診断結果の内容
+   */
+  const applyMainContractSettings = (content: string) => {
+    // 入院給付金日額を抽出
+    const hospitalizationMatch = content.match(/入院給付金日額:\s*([0-9,]+)円/)
+    if (hospitalizationMatch) {
+      const amount = parseInt(hospitalizationMatch[1].replace(/,/g, ''))
+      if (amount && [3000, 5000, 7000, 10000].includes(amount)) {
+        updateMainContract('hospitalizationDailyAmount', amount)
+      }
+    }
+    
+    // 支払日数限度を抽出
+    const daysMatch = content.match(/支払日数限度:\s*([0-9]+)日/)
+    if (daysMatch) {
+      const days = parseInt(daysMatch[1])
+      if (days && [30, 60, 120].includes(days)) {
+        updateMainContract('paymentLimitDays', days)
+      }
+    }
+    
+    // 手術給付金の型を抽出
+    const surgeryMatch = content.match(/手術給付金:\s*(手術[ⅠⅡⅢ]型)/)
+    if (surgeryMatch) {
+      const surgeryType = surgeryMatch[1]
+      if (surgeryType === '手術Ⅰ型') {
+        updateMainContract('surgeryType', 'surgery1')
+      } else if (surgeryType === '手術Ⅱ型') {
+        updateMainContract('surgeryType', 'surgery2')
+        updateMainContract('surgeryMultiplier', 10)
+      } else if (surgeryType === '手術Ⅲ型') {
+        updateMainContract('surgeryType', 'surgery3')
+      }
+    }
+    
+    // 放射線治療を抽出
+    const radiationMatch = content.match(/放射線治療:\s*(あり|なし)/)
+    if (radiationMatch) {
+      updateMainContract('radiationTherapy', radiationMatch[1] === 'あり')
+    }
+    
+    // 払込期間を抽出
+    const periodMatch = content.match(/払込期間:\s*([0-9]+)歳|終身/)
+    if (periodMatch) {
+      if (periodMatch[1] === '終身') {
+        updateMainContract('paymentPeriod', -1)
+      } else {
+        const period = parseInt(periodMatch[1])
+        if (period && [60, 65, 70, 75, 80].includes(period)) {
+          updateMainContract('paymentPeriod', period)
+        }
+      }
+    }
+  }
+
+  /**
+   * 特約の設定を抽出して適用
+   * @param content AI診断結果の内容
+   */
+  const applyRiderSettings = (content: string) => {
+    // 入院一時給付特約を抽出
+    const hospitalizationRiderMatch = content.match(/入院一時給付特約:\s*([0-9,]+)万円/)
+    if (hospitalizationRiderMatch) {
+      const amount = parseInt(hospitalizationRiderMatch[1].replace(/,/g, '')) * 10000
+      if (amount && [100000, 200000, 300000].includes(amount)) {
+        updateRider('hospitalizationRider', 'selected', true)
+        updateRider('hospitalizationRider', 'amount', amount)
+      }
+    }
+    
+    // 女性疾病特約を抽出
+    const womenDiseaseMatch = content.match(/女性疾病特約:\s*([0-9,]+)万円/)
+    if (womenDiseaseMatch) {
+      const amount = parseInt(womenDiseaseMatch[1].replace(/,/g, '')) * 10000
+      if (amount && [100000, 200000, 300000].includes(amount)) {
+        updateRider('womenDiseaseRider', 'selected', true)
+        updateRider('womenDiseaseRider', 'amount', amount)
+      }
+    }
+    
+    // がん一時給付特約を抽出
+    const cancerMatch = content.match(/がん一時給付特約:\s*([0-9,]+)万円/)
+    if (cancerMatch) {
+      const amount = parseInt(cancerMatch[1].replace(/,/g, '')) * 10000
+      if (amount && [500000, 1000000, 2000000].includes(amount)) {
+        updateRider('cancerRider', 'selected', true)
+        updateRider('cancerRider', 'amount', amount)
+      }
+    }
+    
+    // 先進医療特約を抽出
+    const advancedMatch = content.match(/先進医療特約:\s*(あり|なし)/)
+    if (advancedMatch) {
+      updateRider('advancedMedicalRider', 'selected', advancedMatch[1] === 'あり')
+    }
+    
+    // 通院特約を抽出
+    const outpatientMatch = content.match(/通院特約:\s*([0-9,]+)円/)
+    if (outpatientMatch) {
+      const amount = parseInt(outpatientMatch[1].replace(/,/g, ''))
+      if (amount && [2000, 3000, 5000].includes(amount)) {
+        updateRider('outpatientRider', 'selected', true)
+        updateRider('outpatientRider', 'amount', amount)
+      }
+    }
   }
 
   return (
@@ -1399,54 +1682,104 @@ export default function MedicalInsurancePage() {
           </DialogHeader>
           
           <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
-            {/* 結果表示モード */}
-            {currentQuestion === -1 ? (
+            {/* ローディング画面 */}
+            {currentQuestion === -2 ? (
               <Card className="bg-white shadow-sm">
                 <CardHeader className="pb-2 text-center">
-                  <div className="text-4xl mb-2">🎯</div>
-                  <h3 className="text-lg font-semibold text-green-700">診断結果</h3>
+                  <div className="text-4xl mb-2">🤖</div>
+                  <h3 className="text-lg font-semibold text-blue-700">AI診断実行中</h3>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* 提案理由の表示 */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <h4 className="font-medium text-blue-800 mb-2">提案理由:</h4>
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                      あなたの回答から、入院費用とがん治療への備えを重視されていることが分かりました。このプランは、日額8,000円の入院給付金で入院費用をカバーし、がん特約でがん治療にも手厚く備えられます。月額4,500円と比較的負担の軽い保険料で、長期的に継続しやすい設計になっています。
-                    </p>
+                  <div className="text-center py-8">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">AIがあなたの回答を分析中です</p>
+                    <p className="text-xs text-gray-500">しばらくお待ちください...</p>
                   </div>
                   
-                  {/* 推奨プランの表示 */}
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                    <h4 className="font-medium text-green-800 mb-2">推奨プラン:</h4>
-                    <div className="bg-white rounded p-3">
-                      <h5 className="font-bold text-green-700 mb-2">「医療保険プランB」</h5>
-                      <div className="space-y-1 text-sm text-gray-700">
-                        <div>• 入院給付金: 日額8,000円</div>
-                        <div>• 手術給付金: 入院給付金の20倍</div>
-                        <div>• 放射線治療: あり</div>
-                        <div>• がん特約: あり</div>
-                        <div>• 月額保険料: 約4,500円</div>
+                  {/* 進行状況の表示 */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+                      <span className="text-sm font-medium text-blue-800">診断の進行状況</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-xs text-gray-600">回答の分析完了</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                        <span className="text-xs text-gray-600">AIによる診断実行中</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                        <span className="text-xs text-gray-400">結果生成中</span>
                       </div>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            ) : currentQuestion === -1 ? (
+              /* 診断結果表示 */
+              <Card className="bg-white shadow-sm">
+                <CardHeader className="pb-2 text-center">
+                  <div className="text-4xl mb-2">🎯</div>
+                  <h3 className="text-lg font-semibold text-green-700">AI診断結果</h3>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* AI診断結果の表示 */}
+                  {chatMessages.length > 0 && chatMessages[chatMessages.length - 1].type === 'ai' && (
+                    <>
+                      {/* 診断理由 */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <h4 className="font-medium text-blue-800 mb-2">診断理由:</h4>
+                        <div className="text-sm text-gray-700 leading-relaxed">
+                          {extractDiagnosisReason(chatMessages[chatMessages.length - 1].content)}
+                        </div>
+                      </div>
+                      
+                      {/* 提案のプラン */}
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h4 className="font-medium text-green-800 mb-3 text-base">提案のプラン:</h4>
+                        <div className="bg-white rounded-lg p-4 border border-green-100">
+                          <div className="space-y-4 text-sm text-gray-700 leading-relaxed">
+                            <div dangerouslySetInnerHTML={{ 
+                              __html: formatRecommendedPlan(extractRecommendedPlan(chatMessages[chatMessages.length - 1].content)) 
+                            }} />
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                   
                   {/* アクションボタン */}
                   <div className="flex space-x-2">
                     <Button
-                      className="flex-1 bg-gray-500 hover:bg-gray-600 text-white"
-                      onClick={() => setChatDialogOpen(false)}
-                    >
-                      適用しない
-                    </Button>
-                    <Button
                       className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                       onClick={() => {
-                        // プラン適用の処理（将来的に実装）
-                        alert('プランが適用されました。詳細は担当者にお問い合わせください。')
+                        // AI診断結果をプラン選択画面に適用
+                        applyAIPlanToSelection()
                         setChatDialogOpen(false)
                       }}
                     >
                       適用する
+                    </Button>
+                    <Button
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                      onClick={() => {
+                        // 診断をリセットして最初からやり直す
+                        resetDiagnosis()
+                      }}
+                    >
+                      もう一度診断する
+                    </Button>
+                    <Button
+                      className="flex-1 bg-gray-500 hover:bg-gray-600 text-white"
+                      onClick={() => setChatDialogOpen(false)}
+                    >
+                      終了する
                     </Button>
                   </div>
                 </CardContent>
@@ -1527,15 +1860,33 @@ export default function MedicalInsurancePage() {
                       </div>
                     )}
                     
-                    {/* 情報セクション */}
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-5 h-5 bg-orange-500 text-white rounded-full flex items-center justify-center">
-                          <span className="text-xs font-bold">i</span>
+                    {/* 情報セクション（アコーディオン形式） */}
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+                      <button
+                        className="w-full p-2 flex items-center justify-between hover:bg-gray-100 transition-colors"
+                        onClick={() => toggleHelp(q.id)}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <div className="w-5 h-5 bg-orange-500 text-white rounded-full flex items-center justify-center">
+                            <span className="text-xs font-bold">i</span>
+                          </div>
+                          <span className="text-sm text-blue-600">{q.info}</span>
                         </div>
-                        <span className="text-sm text-blue-600">{q.info}</span>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-gray-400" />
+                        <ChevronDown 
+                          className={`h-4 w-4 text-gray-400 transition-transform ${
+                            expandedHelp === q.id ? 'rotate-180' : ''
+                          }`} 
+                        />
+                      </button>
+                      
+                      {/* ヘルプ内容（アコーディオン） */}
+                      {expandedHelp === q.id && (
+                        <div className="px-3 pb-3 border-t border-gray-200">
+                          <div className="pt-2 text-sm text-gray-700 leading-relaxed">
+                            {q.helpContent}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
