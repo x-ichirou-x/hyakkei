@@ -494,7 +494,7 @@ export default function CustomerInfoPage() {
   const handleSubmit = () => {
     if (validateForm()) {
       // バリデーション成功時の処理
-      console.log("個人情報送信:", customerInfo)
+      // console.log("個人情報送信:", customerInfo)
       // 次の画面へ遷移（重要事項確認）
       window.location.href = "/medical/important"
     }

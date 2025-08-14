@@ -92,7 +92,7 @@ export default function IdentityUploadPage() {
   const handleNext = () => {
     persist({})
     if (!canProceed) return
-    console.log("kyc:submit", { method, docType, front: frontFile?.name, back: backFile?.name })
+    // console.log("kyc:submit", { method, docType, front: frontFile?.name, back: backFile?.name })
     // 確認画面へ遷移
     window.location.href = "/medical/confirm"
   }

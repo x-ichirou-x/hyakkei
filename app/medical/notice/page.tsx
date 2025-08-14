@@ -155,7 +155,7 @@ export default function MedicalNoticePage() {
   const handleNext = () => {
     try {
       if (!canProceed) return
-      console.log("notice:submit", answers)
+      // console.log("notice:submit", answers)
       // 次画面へ遷移（受取人・指定代理請求人の入力）
       window.location.href = "/medical/beneficiary"
     } catch (error: unknown) {

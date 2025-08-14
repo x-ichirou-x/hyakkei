@@ -66,7 +66,7 @@ export default function ConfirmPage() {
   }
 
   const handleSubmit = () => {
-    console.log("confirm:submit", { notice, beneficiary, payment, kyc })
+    // console.log("confirm:submit", { notice, beneficiary, payment, kyc })
     window.location.href = "/medical/complete"
   }
 

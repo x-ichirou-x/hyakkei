@@ -112,7 +112,7 @@ export default function PaymentMethodPage() {
   const handleNext = () => {
     try {
       if (!canProceed) return
-      console.log("payment:submit", { method, agreeCard, agreeBank })
+      // console.log("payment:submit", { method, agreeCard, agreeBank })
       // 本人確認書類提出へ
       window.location.href = "/medical/identity"
     } catch (error: unknown) {

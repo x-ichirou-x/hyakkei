@@ -646,7 +646,7 @@ export default function MedicalInsurancePage() {
    */
   const toggleOption = useCallback((questionId: string, optionId: string, isMultiSelect: boolean) => {
     const startTime = performance.now()
-    console.log(`[toggleOption] 開始: ${questionId} - ${optionId}`)
+    // console.log(`[toggleOption] 開始: ${questionId} - ${optionId}`)
     
     // 選択状態の更新のみを即座に実行（最優先）
     updateSelectionImmediately(questionId, optionId, isMultiSelect)
@@ -654,7 +654,7 @@ export default function MedicalInsurancePage() {
     // 状態更新完了を即座に記録
     const endTime = performance.now()
     const duration = endTime - startTime
-    console.log(`[toggleOption] 即座完了: ${questionId} - ${optionId}, 処理時間: ${duration.toFixed(2)}ms`)
+          // console.log(`[toggleOption] 即座完了: ${questionId} - ${optionId}, 処理時間: ${duration.toFixed(2)}ms`)
     
     // 他の処理は非同期で実行（UIの応答性を向上）
     Promise.resolve().then(() => {
@@ -666,7 +666,7 @@ export default function MedicalInsurancePage() {
       const asyncEndTime = performance.now()
       const asyncDuration = asyncEndTime - asyncStartTime
       const totalDuration = asyncEndTime - startTime
-      console.log(`[toggleOption] 非同期処理: ${questionId} - ${optionId}, 非同期処理時間: ${asyncDuration.toFixed(2)}ms, 総処理時間: ${totalDuration.toFixed(2)}ms`)
+              // console.log(`[toggleOption] 非同期処理: ${questionId} - ${optionId}, 非同期処理時間: ${asyncDuration.toFixed(2)}ms, 総処理時間: ${totalDuration.toFixed(2)}ms`)
     })
   }, [updateSelectionImmediately]) // 専用関数への依存を追加
 
@@ -884,7 +884,7 @@ export default function MedicalInsurancePage() {
       applyRiderSettings(content)
       
       // 成功メッセージを表示（オプション）
-      console.log('AI診断結果がプラン選択画面に適用されました')
+      // console.log('AI診断結果がプラン選択画面に適用されました')
       
     } catch (error) {
       console.error('プラン適用エラー:', error)

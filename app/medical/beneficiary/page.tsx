@@ -213,7 +213,7 @@ export default function BeneficiaryPage() {
       setErrors(merged)
       setShowAllErrors(true)
       if (Object.keys(merged).length > 0) return
-      console.log('beneficiary:submit', { beneficiary, agent, sameAsBeneficiary })
+      // console.log('beneficiary:submit', { beneficiary, agent, sameAsBeneficiary })
       // 次へ（支払い方法の登録）
       window.location.href = '/medical/payment'
     } catch (error: unknown) {

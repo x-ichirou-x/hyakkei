@@ -20,19 +20,19 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { userAnswers, context } = body
     
-    console.log('Request body:', body)
+    // console.log('Request body:', body)
     
     // OpenAI APIキーを環境変数から取得
     const apiKey = process.env.OPENAI_API_KEY
     
     // デバッグ用ログ（本番環境では削除）
-    console.log('Environment variables check:', {
-      NODE_ENV: process.env.NODE_ENV,
-      AMPLIFY_ENV: process.env.AWS_BRANCH,
-      API_KEY_EXISTS: !!process.env.OPENAI_API_KEY,
-      API_KEY_LENGTH: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.length : 0,
-      API_KEY_PREFIX: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 10) + '...' : 'undefined'
-    })
+    // console.log('Environment variables check:', {
+    //   NODE_ENV: process.env.NODE_ENV,
+    //   AMPLIFY_ENV: process.env.AWS_BRANCH,
+    //   API_KEY_EXISTS: !!process.env.OPENAI_API_KEY,
+    //   API_KEY_LENGTH: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.length : 0,
+    //   API_KEY_PREFIX: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 10) + '...' : 'undefined'
+    // })
     
     if (!apiKey) {
       console.error('OpenAI API key not configured')
@@ -44,16 +44,16 @@ export async function POST(request: Request) {
 
     // 回答の分析
     const analysis = analyzeAnswers(userAnswers, context)
-    console.log('分析結果:', JSON.stringify(analysis, null, 2))
+    // console.log('分析結果:', JSON.stringify(analysis, null, 2))
     
     // OpenAI APIに送信するプロンプトを作成
     const prompt = createPrompt(userAnswers, analysis, context)
-    console.log('生成されたプロンプト長:', prompt.length)
+    // console.log('生成されたプロンプト長:', prompt.length)
     
     // OpenAI APIを呼び出し
     const diagnosis = await callOpenAI(prompt, apiKey)
     
-    console.log('診断完了')
+    // console.log('診断完了')
     
     return NextResponse.json({ 
       success: true, 
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     })
     
   } catch (error) {
-    console.error('診断APIエラー:', error)
+    // console.error('診断APIエラー:', error)
     return NextResponse.json(
       { 
         success: false, 
@@ -400,9 +400,9 @@ Q5. 現在の年齢は？
  * @returns 診断結果
  */
 async function callOpenAI(prompt: string, apiKey: string): Promise<string> {
-  console.log('OpenAI API呼び出し開始')
-  console.log('プロンプト長:', prompt.length)
-  console.log('プロンプト内容:', prompt.substring(0, 500) + '...')
+  // console.log('OpenAI API呼び出し開始')
+  // console.log('プロンプト長:', prompt.length)
+  // console.log('プロンプト内容:', prompt.substring(0, 500) + '...')
   
   const requestBody = {
     model: 'gpt-5-mini',
@@ -421,7 +421,7 @@ async function callOpenAI(prompt: string, apiKey: string): Promise<string> {
     verbosity: 'medium'
   }
   
-  console.log('リクエストボディ:', JSON.stringify(requestBody, null, 2))
+  // console.log('リクエストボディ:', JSON.stringify(requestBody, null, 2))
   
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -432,17 +432,17 @@ async function callOpenAI(prompt: string, apiKey: string): Promise<string> {
     body: JSON.stringify(requestBody),
   })
 
-  console.log('OpenAI API レスポンスステータス:', response.status)
-  console.log('OpenAI API レスポンスヘッダー:', Object.fromEntries(response.headers.entries()))
+  // console.log('OpenAI API レスポンスステータス:', response.status)
+  // console.log('OpenAI API レスポンスヘッダー:', Object.fromEntries(response.headers.entries()))
 
   if (!response.ok) {
     const errorText = await response.text()
-    console.error('OpenAI API エラーレスポンス:', errorText)
+    // console.error('OpenAI API エラーレスポンス:', errorText)
     throw new Error(`OpenAI API error: ${response.status} - ${errorText}`)
   }
 
   const data = await response.json()
-  console.log('OpenAI API 成功レスポンス:', JSON.stringify(data, null, 2))
+  // console.log('OpenAI API 成功レスポンス:', JSON.stringify(data, null, 2))
   
   return data.choices[0]?.message?.content || '診断結果を生成できませんでした。'
 }
