@@ -19,6 +19,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Table } from "antd"
+import Image from "next/image"
 import type { ColumnsType } from "antd/es/table"
 import { Crown, Check } from "lucide-react"
 import { productCatalog, type Product, type Gender } from "./productData"
@@ -38,6 +39,8 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
   const [sortKey, setSortKey] = useState<"popularity" | "premiumAsc">("popularity")
   /** 比較選択中の商品ID */
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  // 比較表示用に可視列を制御（null = 全件表示）
+  const [visibleProductIds, setVisibleProductIds] = useState<string[] | null>(null)
 
   /**
    * フィルタとソート済みの商品一覧
@@ -62,25 +65,25 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
   return (
     <div className="min-h-screen bg-semantic-bg">
       <div className="w-full mx-auto py-8">
-        {/* 条件フォーム */}
-        <FilterForm
-          age={age}
-          gender={gender}
-          dailyAmount={dailyAmount}
-          sortKey={sortKey}
-          onChangeAge={setAge}
-          onChangeGender={setGender}
-          onChangeDailyAmount={setDailyAmount}
-          onChangeSortKey={setSortKey}
-        />
+        
+
+        {/* アイコンバナー（分析ボタン） */}
+        <div className="mb-4 flex justify-start">
+          <button type="button" aria-label="分析ツールを開く" className="transition-opacity hover:opacity-90">
+            <Image src="/analisys_button.png" alt="チェックした商品の分析" width={240} height={69} priority />
+          </button>
+        </div>
 
         {/* 結果一覧 */}
         <ComparisonTable
           products={filteredAndSorted}
           selectedIds={selectedIds}
+          visibleProductIds={visibleProductIds}
           onToggle={(id) =>
             setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
           }
+          onCompareSelected={() => setVisibleProductIds(selectedIds.length > 0 ? [...selectedIds] : null)}
+          onResetVisible={() => setVisibleProductIds(null)}
         />
 
         
@@ -190,11 +193,17 @@ function FilterForm(props: FilterFormProps): JSX.Element {
 function ComparisonTable({
   products,
   selectedIds,
-  onToggle
+  visibleProductIds,
+  onToggle,
+  onCompareSelected,
+  onResetVisible
 }: {
   products: Product[]
   selectedIds: string[]
+  visibleProductIds: string[] | null
   onToggle: (id: string) => void
+  onCompareSelected: () => void
+  onResetVisible: () => void
 }): JSX.Element {
   
 
@@ -474,18 +483,27 @@ function ComparisonTable({
   })
 
   // カラム定義
+  const filteredProducts = Array.isArray(visibleProductIds) && visibleProductIds.length > 0
+    ? products.filter(p => visibleProductIds.includes(p.productId))
+    : products
+
   const columns: ColumnsType<any> = [
     {
       title: (
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 border border-blue-300 rounded-xl px-3 py-1 bg-white hover:bg-blue-50 shadow-sm"
-        >
-          <span className="w-5 h-5 rounded-sm bg-blue-600 text-white inline-flex items-center justify-center">
-            <Check className="w-4 h-4" />
-          </span>
-          <span className="text-blue-600 font-semibold text-sm">チェックした商品を比較</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={(Array.isArray(visibleProductIds) && visibleProductIds.length > 0) ? onResetVisible : onCompareSelected}
+            className="inline-flex items-center gap-2 border border-blue-300 rounded-xl px-3 py-1 bg-white hover:bg-blue-50 shadow-sm"
+          >
+            <span className="w-5 h-5 rounded-sm bg-blue-600 text-white inline-flex items-center justify-center">
+              <Check className="w-4 h-4" />
+            </span>
+            <span className="text-blue-600 font-semibold text-sm">
+              {(Array.isArray(visibleProductIds) && visibleProductIds.length > 0) ? 'すべての商品を表示する' : 'チェックした商品を比較'}
+            </span>
+          </button>
+        </div>
       ),
       dataIndex: "item",
       key: "item",
@@ -519,7 +537,7 @@ function ComparisonTable({
         <span className="text-slate-700">{value}</span>
       )
     },
-    ...products.map((p) => ({
+    ...filteredProducts.map((p) => ({
       title: (
         <input
           type="checkbox"
@@ -680,6 +698,8 @@ function ComparisonTable({
             dataSource={stickyTopRows}
             pagination={false}
             scroll={{ x: "max-content" }}
+            tableLayout="fixed"
+            style={{ width: "max-content" }}
             className="text-body"
           />
         </div>
@@ -698,6 +718,8 @@ function ComparisonTable({
           pagination={false}
           showHeader={false}
           scroll={{ x: "max-content" }}
+          tableLayout="fixed"
+          style={{ width: "max-content" }}
           className="text-body"
         />
       </div>
