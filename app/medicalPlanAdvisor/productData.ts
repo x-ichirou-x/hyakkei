@@ -157,6 +157,56 @@ export interface Product {
 }
 
 /**
+ * CSVの特徴タグ行（L9-L16）を簡易パースして、各商品列ごとのタグ配列に変換するユーティリティ。
+ * - 最初の2列（項目名/サブ項目名）をスキップし、以降の20列を商品列として扱う。
+ * - 値が'#'で始まるセルのみタグとして採用。
+ */
+function splitCsvLine(line: string): string[] {
+  const result: string[] = []
+  let current = ""
+  let inQuotes = false
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i]
+    if (ch === '"') { inQuotes = !inQuotes; continue }
+    if (ch === ',' && !inQuotes) { result.push(current); current = ""; continue }
+    current += ch
+  }
+  result.push(current)
+  return result
+}
+
+function parseCsvTagRows(rows: string[]): string[][] {
+  const productCount = 20
+  const perProductTags: string[][] = Array.from({ length: productCount }, () => [])
+  for (const row of rows) {
+    const fields = splitCsvLine(row)
+    for (let i = 0; i < productCount; i += 1) {
+      const raw = (fields[2 + i] ?? "").trim()
+      if (!raw) continue
+      const unquoted = raw.replace(/^\"|\"$/g, "").trim()
+      if (unquoted.startsWith("#")) {
+        if (!perProductTags[i].includes(unquoted)) perProductTags[i].push(unquoted)
+      }
+    }
+  }
+  return perProductTags
+}
+
+// CSV L9-L16（特徴タグ）原文を埋め込み（外部ファイルは読込まない）
+const csvTagRows: string[] = [
+  '特徴タグ,,,"#日額5,000円","#日額5,000円","#日額5,000円","#日額5,000円","#日額5,000円","#日額5,000円",#終身払,"#日額5,000円","#日額5,000円","#日額5,000円","#日額5,000円",#一時金10万円,"#日額5,000円","#日額5,000円","#日額5,000円","#日額5,000円",#終身払,"#日額5,000円","#日額5,000円"',
+  ',,,#終身払,#終身払,#10年間,#終身払,#終身払,#終身払,#ネット申込,#終身払,#終身払,#終身払,#終身払,#掛け捨て,#終身払,#一時金10万円,#終身払,#終身払,#お金戻ってくる,#終身払,#終身払',
+  ',,,#ネット申込,#がん保障も,#短期入院に手厚い,#がん保障も,#がん保障も,#掛け捨て,,#ネット申込,#がん保障も,#短期入院に手厚い,#短期入院に手厚い,#一時金タイプ,#ネット申込,#60歳払済,#がん保障も,,#ネット申込,#死亡保障も,',
+  ',,,,#掛け捨て,#手術あり,#骨髄移植も,#ネット申込,,,,#掛け捨て,#手術あり,,#定期タイプ,,#65歳払済,#死亡保障も,,,#ネット申込,',
+  ',,,,#ネット申込,#エコノミーコース,#掛け捨て,,,,,#ネット申込,#エコノミーコース,,#ネット申込,,#10年払済,#骨髄移植も,,,,',
+  ',,,,,#ネット申込,#手術あり,,,,,,#ネット申込,,,,,#お金戻ってくる,,,,',
+  ',,,,,,#ネット申込,,,,,,,,,,,#長期入院に手厚い,,,,',
+  ',,,,,,,,,,,,,,,,,#手術あり,,,,',
+]
+
+const csvTagsByProductIndex = parseCsvTagRows(csvTagRows)
+
+/**
  * デモ用商品カタログ
  * - 値はダミー。多様なパターンを持つように分布させる。
  */
@@ -196,7 +246,7 @@ export const productCatalog: Product[] = [
     popularity: 12,
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#日額1万円", "#終身", "#先進医療"],
+    tags: csvTagsByProductIndex[0],
     logoText: "FWD",
     campaign: "実施中"
   },
@@ -222,7 +272,7 @@ export const productCatalog: Product[] = [
     popularity: 18,
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#日額5千円", "#更新型", "#一時金"],
+    tags: csvTagsByProductIndex[1],
     logoText: "チューリッヒ",
     campaign: "実施中"
   },
@@ -246,7 +296,7 @@ export const productCatalog: Product[] = [
     popularity: 14,
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#定期10年", "#日額1万円"],
+    tags: csvTagsByProductIndex[2],
     logoText: "SBI"
   },
   {
@@ -269,7 +319,7 @@ export const productCatalog: Product[] = [
     popularity: 10,
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#日額2万円", "#終身", "#がん"],
+    tags: csvTagsByProductIndex[3],
     logoText: "ライフネット"
   },
   {
@@ -293,7 +343,7 @@ export const productCatalog: Product[] = [
     campaign: "実施中",
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#定期10年", "#日額5千円"],
+    tags: csvTagsByProductIndex[4],
     logoText: "メディケア"
   },
   {
@@ -316,7 +366,7 @@ export const productCatalog: Product[] = [
     popularity: 6,
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#終身", "#定額手術"],
+    tags: csvTagsByProductIndex[5],
     logoText: "ネオファースト"
   }
   ,
@@ -335,7 +385,7 @@ export const productCatalog: Product[] = [
     popularity: 17,
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#日額5千円"],
+    tags: csvTagsByProductIndex[6],
     logoText: "なないろ"
   },
   {
@@ -354,7 +404,7 @@ export const productCatalog: Product[] = [
     campaign: "実施中",
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#日額5千円"],
+    tags: csvTagsByProductIndex[7],
     logoText: "楽天"
   },
   {
@@ -372,7 +422,7 @@ export const productCatalog: Product[] = [
     popularity: 20,
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#日額5千円"],
+    tags: csvTagsByProductIndex[8],
     logoText: "はなさく",
     campaign: "実施中"
   },
@@ -391,7 +441,7 @@ export const productCatalog: Product[] = [
     popularity: 19,
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#日額5千円"],
+    tags: csvTagsByProductIndex[9],
     logoText: "オリックス"
   },
   {
@@ -409,7 +459,7 @@ export const productCatalog: Product[] = [
     popularity: 13,
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#日額5千円"],
+    tags: csvTagsByProductIndex[10],
     logoText: "ライフネット"
   },
   {
@@ -427,7 +477,7 @@ export const productCatalog: Product[] = [
     popularity: 7,
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#日額5千円"],
+    tags: csvTagsByProductIndex[11],
     logoText: "三井住友あいおい"
   },
   {
@@ -445,7 +495,7 @@ export const productCatalog: Product[] = [
     popularity: 9,
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#一時金"],
+    tags: csvTagsByProductIndex[12],
     logoText: "太陽"
   },
   {
@@ -463,7 +513,7 @@ export const productCatalog: Product[] = [
     popularity: 5,
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#日額5千円"],
+    tags: csvTagsByProductIndex[13],
     logoText: "あんしん"
   },
   {
@@ -481,7 +531,7 @@ export const productCatalog: Product[] = [
     popularity: 2,
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#日額5千円"],
+    tags: csvTagsByProductIndex[14],
     logoText: "アフラック"
   },
   {
@@ -499,7 +549,7 @@ export const productCatalog: Product[] = [
     popularity: 1,
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#日額5千円"],
+    tags: csvTagsByProductIndex[15],
     logoText: "メディケア"
   },
   {
@@ -517,7 +567,7 @@ export const productCatalog: Product[] = [
     popularity: 4,
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#日額5千円"],
+    tags: csvTagsByProductIndex[16],
     logoText: "あんしん"
   },
   {
@@ -536,7 +586,7 @@ export const productCatalog: Product[] = [
     campaign: "実施中",
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#日額5千円"],
+    tags: csvTagsByProductIndex[17],
     logoText: "楽天"
   },
   {
@@ -555,7 +605,7 @@ export const productCatalog: Product[] = [
     campaign: "実施中",
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#日額5千円"],
+    tags: csvTagsByProductIndex[18],
     logoText: "オリックス"
   },
   {
@@ -573,7 +623,7 @@ export const productCatalog: Product[] = [
     popularity: 3,
     applyUrl: "#",
     brochureUrl: "#",
-    tags: ["#日額5千円"],
+    tags: csvTagsByProductIndex[19],
     logoText: "ひまわり"
   }
 ]

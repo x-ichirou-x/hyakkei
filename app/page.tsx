@@ -161,12 +161,12 @@ export default function Home() {
                       ))}
                     </ul>
                     {service.status === "available" ? (
-                      <Button className="w-full" onClick={() => window.location.href = service.path}>
+                      <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" onClick={() => window.location.href = service.path}>
                         詳細を見る
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                     ) : (
-                      <Button variant="outline" className="w-full" disabled>
+                      <Button variant="outline" className="w-full bg-white text-gray-500 border-gray-300" disabled>
                         準備中
                       </Button>
                     )}
