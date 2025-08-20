@@ -43,6 +43,16 @@ export default function Home() {
       color: "text-semantic-success"
     },
     {
+      id: "medical-plan-advisor",
+      title: "医療保険アドバイザー",
+      description: "基礎情報とニーズからプラン提案→該当商品の推薦を行うデモ",
+      icon: Shield,
+      status: "available",
+      features: ["ニーズ入力", "プラン提案", "商品推薦", "説明表示"],
+      path: "/medicalPlanAdvisor",
+      color: "text-semantic-brand"
+    },
+    {
       id: "foreign",
       title: "外貨建て保険",
       description: "為替変動を活用した資産形成と保障の両立",
@@ -81,6 +91,8 @@ export default function Home() {
   const handleServiceClick = (serviceId: string) => {
     if (serviceId === "medical") {
       window.location.href = "/medical"
+    } else if (serviceId === "medical-plan-advisor") {
+      window.location.href = "/medicalPlanAdvisor"
     } else {
       setActiveService(serviceId)
     }
