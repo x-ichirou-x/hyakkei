@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
+import "antd/dist/reset.css";
 
 /**
  * Noto Sans JPフォントの設定

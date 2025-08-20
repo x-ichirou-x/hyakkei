@@ -120,6 +120,13 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* AntD 固定行上部テーブルのスクロールバー非表示 */
+  .fixed-top-table .ant-table-body {
+    overflow-x: hidden !important;
+  }
+  .fixed-top-table .ant-table-content {
+    overflow-x: hidden !important;
+  }
   
   /* Noto Sans JPフォントファミリーの定義 */
   .font-noto-sans-jp {

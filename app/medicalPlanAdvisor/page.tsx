@@ -17,7 +17,10 @@
 
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Table } from "antd"
+import type { ColumnsType } from "antd/es/table"
+import { Crown } from "lucide-react"
 import { productCatalog, type Product, type Gender } from "./productData"
 
 /**
@@ -29,8 +32,8 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
   const [age, setAge] = useState<number>(35)
   /** 性別 */
   const [gender, setGender] = useState<Gender>("male")
-  /** 入院日額 */
-  const [dailyAmount, setDailyAmount] = useState<number>(10000)
+  /** 入院日額（指定なしはnull） */
+  const [dailyAmount, setDailyAmount] = useState<number | null>(null)
   /** 並び替えキー */
   const [sortKey, setSortKey] = useState<"popularity" | "premiumAsc">("popularity")
   /** 比較選択中の商品ID */
@@ -44,8 +47,9 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
    */
   const filteredAndSorted: Product[] = useMemo(() => {
     const byAge = productCatalog.filter(p => age >= p.entryAgeRange.min && age <= p.entryAgeRange.max)
-    const byAmount = byAge.filter(p => p.hospitalizationCoverage.hospitalizationDailyAmount === dailyAmount)
-    const base = byAmount.length > 0 ? byAmount : byAge
+    const base = dailyAmount == null
+      ? byAge
+      : byAge.filter(p => p.hospitalizationCoverage.hospitalizationDailyAmount === dailyAmount)
     const sorted = [...base].sort((a, b) => {
       if (sortKey === "popularity") return b.popularity - a.popularity
       const ap = a.premiumInfo.sampleMonthlyPremium ?? Number.MAX_SAFE_INTEGER
@@ -58,9 +62,6 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
   return (
     <div className="min-h-screen bg-semantic-bg">
       <div className="container mx-auto px-4 py-16">
-        <h1 className="text-h1 font-semibold text-semantic-fg mb-4">医療保険 比較シミュレーション（デモ）</h1>
-        <p className="text-body text-semantic-fg-subtle mb-8">年齢・性別・入院日額を選択して、デモ用カタログから商品を比較します。</p>
-
         {/* 条件フォーム */}
         <FilterForm
           age={age}
@@ -80,7 +81,6 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
           onToggle={(id) =>
             setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
           }
-          onToggleAll={(checked) => setSelectedIds(checked ? filteredAndSorted.map((p) => p.productId) : [])}
         />
 
         {/* 免責/注意 */}
@@ -99,8 +99,8 @@ interface FilterFormProps {
   age: number
   /** 性別 */
   gender: Gender
-  /** 入院日額 */
-  dailyAmount: number
+  /** 入院日額（指定なしはnull） */
+  dailyAmount: number | null
   /** 並び替え */
   sortKey: "popularity" | "premiumAsc"
   /** 年齢変更ハンドラ */
@@ -108,7 +108,7 @@ interface FilterFormProps {
   /** 性別変更ハンドラ */
   onChangeGender: (value: Gender) => void
   /** 入院日額変更ハンドラ */
-  onChangeDailyAmount: (value: number) => void
+  onChangeDailyAmount: (value: number | null) => void
   /** 並び替え変更ハンドラ */
   onChangeSortKey: (value: "popularity" | "premiumAsc") => void
 }
@@ -150,9 +150,13 @@ function FilterForm(props: FilterFormProps): JSX.Element {
           <label className="block text-caption text-semantic-fg-subtle mb-1">入院日額</label>
           <select
             className="w-full border border-semantic-border rounded-md px-3 py-2 bg-transparent"
-            value={dailyAmount}
-            onChange={(e) => onChangeDailyAmount(Number(e.target.value))}
+            value={dailyAmount ?? ""}
+            onChange={(e) => {
+              const v = e.target.value
+              onChangeDailyAmount(v === "" ? null : Number(v))
+            }}
           >
+            <option value="">指定なし</option>
             <option value={5000}>5,000円</option>
             <option value={10000}>10,000円</option>
             <option value={20000}>20,000円</option>
@@ -187,99 +191,400 @@ function FilterForm(props: FilterFormProps): JSX.Element {
 function ComparisonTable({
   products,
   selectedIds,
-  onToggle,
-  onToggleAll
+  onToggle
 }: {
   products: Product[]
   selectedIds: string[]
   onToggle: (id: string) => void
-  onToggleAll: (checked: boolean) => void
 }): JSX.Element {
-  const allChecked = products.length > 0 && products.every((p) => selectedIds.includes(p.productId))
-  return (
-    <div className="rounded-lg border border-semantic-border overflow-x-auto bg-semantic-bg">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-semantic-border">
-        <div className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            checked={allChecked}
-            onChange={(e) => onToggleAll(e.target.checked)}
-            aria-label="全選択"
-          />
-          <span className="text-body text-semantic-fg-subtle">チェックした商品を比較（{selectedIds.length}）</span>
+  
+
+  const formatPayingPeriod = (value: string): string => {
+    if (!value) return "-"
+    if (value === "lifetime") return "終身払"
+    if (value.startsWith("years_")) {
+      const y = value.split("_")[1]
+      return `${y}年払`
+    }
+    if (value.startsWith("to_age_")) {
+      const a = value.split("_")[2]
+      return `${a}歳払済`
+    }
+    return value
+  }
+
+  const summarizeRiders = (riders?: Product["riders"]): string[] => {
+    if (!riders) return []
+    const list: string[] = []
+    if (riders.advancedMedicalRider) list.push("先進医療")
+    if (riders.womenSpecificRider) list.push("女性疾病")
+    if (riders.waiverRider) list.push("払込免除")
+    if (riders.hospitalizationLumpSumRider) list.push("入退院一時金")
+    if (riders.injuryFractureRider) list.push("骨折・外傷")
+    if (riders.disabilityIncomeOrWorkIncapacityRider) list.push("就業不能")
+    if (riders.criticalIllnessRiders && riders.criticalIllnessRiders.length > 0) {
+      const map: Record<string, string> = { cancer: "がん", heart: "心疾患", stroke: "脳血管" }
+      list.push(...riders.criticalIllnessRiders.map(k => map[k] ?? k))
+    }
+    if (riders.otherRiders && riders.otherRiders.length > 0) list.push(...riders.otherRiders)
+    return list
+  }
+
+  const rows: Array<{
+    key: string
+    label: string
+    render: (p: Product, idx: number) => JSX.Element | string
+    align?: "left" | "center" | "right"
+    group?: string
+    mergeLabelCols?: boolean
+  }> = [
+    {
+      key: "rank",
+      label: "ランキング",
+      align: "center",
+      render: (_p, idx) => (
+        <span className="inline-flex items-center gap-2 justify-center">
+          {idx === 0 ? <Crown className="w-5 h-5 text-amber-500" /> : null}
+          <span className="text-2xl font-semibold text-slate-800">{idx + 1}</span>
+          <span className="text-caption text-slate-500">位</span>
+        </span>
+      )
+    },
+    {
+      key: "insurer",
+      label: "保険会社名",
+      align: "center",
+      render: (p) => p.insurerName
+    },
+    // 商品行は削除
+    {
+      key: "feature_tags",
+      label: "特徴タグ",
+      render: (p) => (
+        <div className="flex flex-wrap gap-1 justify-center">
+          {(p.tags ?? []).slice(0, 6).map((t) => (
+            <span key={t} className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-caption text-slate-600">{t}</span>
+          ))}
         </div>
-        <button className="border border-semantic-border rounded-md px-3 py-1 text-caption" disabled={selectedIds.length < 2}>比較する</button>
+      )
+    },
+    { key: "section_hoken", label: "保障内容", render: () => "" },
+    { key: "productNameRow", label: "商品名", mergeLabelCols: true, align: "center", render: (p) => p.productName },
+    { key: "policy", label: "保険期間", align: "center", render: (p) => (p.policyType === "wholeLife" ? "終身" : "定期") },
+    { key: "premium_section", label: "保険料", align: "center", render: () => "" },
+    { key: "payingPeriod", group: "保険料", label: "払込期間", align: "center", render: (p) => formatPayingPeriod(p.payingPeriod) },
+    { key: "paymentRoute", group: "保険料", label: "払込方法（経路）", align: "center", render: () => "-" },
+    { key: "paymentFrequency", group: "保険料", label: "払込方法（回数）", align: "center", render: (p) => (p.paymentMode === "monthly" ? "月払" : p.paymentMode === "yearly" ? "年払" : "-") },
+    { key: "premium", label: "月払い保険料", mergeLabelCols: true, align: "center", render: (p) => (<span className="inline-flex items-end"><span className="text-3xl font-bold leading-none text-rose-600">¥{p.premiumInfo.sampleMonthlyPremium.toLocaleString()}</span><span className="text-xs text-slate-500 ml-1 mb-0.5">/月払</span></span>) },
+    { key: "section_hospitalization", label: "入院", render: () => "" },
+    { key: "surgery", label: "手術", align: "center", render: (p) => (p.surgeryCoverage.surgeryPaymentMethod === "multiplier" ? "倍率" : "定額") },
+    { key: "hAmount", group: "入院", label: "入院日額", align: "center", render: (p) => `${p.hospitalizationCoverage.hospitalizationDailyAmount.toLocaleString()}円` },
+    { key: "hLimitPer", group: "入院", label: "１入院の限度日数", align: "center", render: (p) => p.hospitalizationCoverage.hospitalizationLimitPerHospitalization },
+    { key: "hLimitTotal", group: "入院", label: "通算支払い限度日数", align: "center", render: (p) => p.hospitalizationCoverage.hospitalizationLimitTotal },
+    { key: "outpatient", label: "通院", align: "center", render: (p) => (p.outpatientCoverage?.outpatientDailyAmount ? `${p.outpatientCoverage.outpatientDailyAmount.toLocaleString()}円` : "-") },
+    { key: "discharge", label: "退院", align: "center", render: () => "-" },
+    {
+      key: "advancedMedical",
+      label: "先進医療",
+      align: "center",
+      render: (p) => (p.riders?.advancedMedicalRider ? "あり" : "-")
+    },
+    {
+      key: "otherBenefits",
+      label: "その他の保障",
+      align: "center",
+      render: () => "-"
+    },
+    {
+      key: "deathDisability",
+      label: "死亡・高度障害",
+      align: "center",
+      render: () => "-"
+    },
+    {
+      key: "bonus",
+      label: "ボーナス",
+      align: "center",
+      render: () => ""
+    },
+    { key: "savingBonus", group: "ボーナス", label: "（無事故）健康ボーナス", align: "center", render: () => "-" },
+    { key: "bonusSaving", group: "ボーナス", label: "積立ボーナス", align: "center", render: () => "-" },
+    {
+      key: "riders",
+      label: "特約",
+      align: "center",
+      render: (p) => {
+        const items = summarizeRiders(p.riders)
+        if (items.length === 0) return "-"
+        return (
+          <div className="flex flex-wrap gap-1 justify-center">
+            {items.slice(0, 8).map((t, i) => (
+              <span key={t + i} className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-caption text-slate-600">{t}</span>
+            ))}
+          </div>
+        )
+      }
+    },
+    {
+      key: "includedRiders",
+      label: "プランに含まれている特約・特則",
+      align: "center",
+      render: () => "-"
+    },
+    {
+      key: "optionalRiders",
+      label: "その他付帯できる特約・特則",
+      align: "center",
+      render: () => "-"
+    },
+    {
+      key: "otherInfo",
+      label: "その他の情報",
+      align: "center",
+      render: () => ""
+    },
+    {
+      key: "ageRange",
+      label: "加入年齢",
+      align: "center",
+      render: (p) => `${p.entryAgeRange.min}歳〜${p.entryAgeRange.max}歳`
+    },
+    {
+      key: "applicationMethod",
+      label: "申込方法",
+      align: "center",
+      render: () => "-"
+    },
+    {
+      key: "notes",
+      label: "備考",
+      align: "center",
+      render: () => "-"
+    },
+    {
+      key: "planNameOrCoverage",
+      label: "プラン名または保障内容",
+      align: "center",
+      render: () => "-"
+    },
+    {
+      key: "docNumber",
+      label: "募集文書番号",
+      align: "center",
+      render: () => "-"
+    },
+    {
+      key: "apply",
+      label: "見積り・申込み",
+      align: "center",
+      render: (p) => (
+        <a href={p.applyUrl ?? "#"} className="inline-block rounded-md px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white">見積・申込</a>
+      )
+    },
+    {
+      key: "brochure",
+      label: "資料請求",
+      align: "center",
+      render: (p) => (
+        <a href={p.brochureUrl ?? "#"} className="inline-flex items-center gap-2 rounded-md px-4 py-2 border border-blue-600 text-blue-600 hover:bg-blue-50">資料請求</a>
+      )
+    },
+    {
+      key: "campaign",
+      label: "期間限定キャンペーン",
+      align: "center",
+      render: (p) => <span className="text-caption text-blue-600 underline cursor-pointer">{p.campaign ?? "-"}</span>
+    }
+  ]
+
+  // 表示順をサイトの項目順にハードコード
+  const labelOrder: string[] = [
+    "ランキング",
+    "保険会社名",
+    "商品名",
+    "月払い保険料",
+    "見積り・申込み",
+    "資料請求",
+    "期間限定キャンペーン",
+    "特徴タグ",
+    "保障内容",
+    "保険期間",
+    "保険料",
+    "払込期間",
+    "払込方法（経路）",
+    "払込方法（回数）",
+    "入院",
+    "入院日額",
+    "１入院の限度日数",
+    "通算支払い限度日数",
+    "手術",
+    "通院",
+    "退院",
+    "先進医療",
+    "その他の保障",
+    "死亡・高度障害",
+    "ボーナス",
+    "（無事故）健康ボーナス",
+    "積立ボーナス",
+    "特約",
+    "プランに含まれている特約・特則",
+    "その他付帯できる特約・特則",
+    "その他の情報",
+    "加入年齢",
+    "申込方法",
+    "備考",
+    "プラン名または保障内容",
+    "募集文書番号"
+  ]
+
+  const rowByLabel = new Map(rows.map(r => [r.label, r]))
+  const orderedRows = labelOrder.map(l => rowByLabel.get(l)).filter(Boolean) as typeof rows
+
+  // セクション単体行を除外
+  const filteredRows = orderedRows.filter(r => !(!r.group && (r.label === "保険料" || r.label === "入院" || r.label === "ボーナス")))
+  // グループの縦結合情報
+  const withSpan = filteredRows.map((r, i, arr) => {
+    if (!r.group) return { r, isHead: false, span: 1 }
+    const prev = i > 0 ? arr[i - 1] : undefined
+    const isHead = !prev || prev.group !== r.group
+    if (!isHead) return { r, isHead: false, span: 0 }
+    let span = 1
+    for (let j = i + 1; j < arr.length; j++) {
+      if (arr[j].group === r.group) span++
+      else break
+    }
+    return { r, isHead: true, span }
+  })
+
+  // データソース生成
+  const dataSource = withSpan.map((info, rowIdx) => {
+    const rec: any = {
+      key: info.r.key,
+      item: info.r.group ? info.r.group : info.r.label,
+      detail: info.r.group ? info.r.label : "",
+      _group: info.r.group,
+      _isHead: info.isHead,
+      _span: info.span,
+      _rowIndex: rowIdx,
+      _label: info.r.label
+    }
+    products.forEach((p, idx) => {
+      rec[p.productId] = info.r.render(p, idx)
+    })
+    return rec
+  })
+
+  // カラム定義
+  const columns: ColumnsType<any> = [
+    {
+      title: "項目",
+      dataIndex: "item",
+      key: "item",
+      width: 224,
+      fixed: "left",
+      onCell: (record: any) => {
+        if (record._group) {
+          return record._isHead ? { rowSpan: record._span, colSpan: 1 } : { rowSpan: 0, colSpan: 1 }
+        }
+        return { colSpan: 2, rowSpan: 1 }
+      },
+      render: (value: string) => (
+        <span className="text-slate-600">{value}</span>
+      )
+    },
+    {
+      title: "項目詳細",
+      dataIndex: "detail",
+      key: "detail",
+      width: 224,
+      fixed: "left",
+      onCell: (record: any) => {
+        if (record._group) return { colSpan: 1 }
+        return { colSpan: 0 }
+      },
+      render: (value: string) => (
+        <span className="text-slate-700">{value}</span>
+      )
+    },
+    ...products.map((p) => ({
+      title: (
+        <input
+          type="checkbox"
+          checked={selectedIds.includes(p.productId)}
+          onChange={() => onToggle(p.productId)}
+          aria-label={`${p.productName} を選択`}
+        />
+      ),
+      dataIndex: p.productId,
+      key: p.productId,
+      align: "center" as const,
+      width: 260
+    }))
+  ]
+
+  // 上部固定領域（期間限定キャンペーンまで）とスクロール領域に分割
+  const cutIndex = Math.max(0, dataSource.findIndex((r: any) => r._label === "期間限定キャンペーン"))
+  const stickyTopRows = cutIndex >= 0 ? dataSource.slice(0, cutIndex + 1) : []
+  const scrollingRows = cutIndex >= 0 ? dataSource.slice(cutIndex + 1) : dataSource
+
+  // 横スクロール同期用
+  const topRef = useRef<HTMLDivElement | null>(null)
+  const bottomRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const getScrollEl = (wrap: HTMLDivElement | null): HTMLDivElement | null => {
+      if (!wrap) return null
+      return (
+        wrap.querySelector('.ant-table-body') as HTMLDivElement | null ??
+        wrap.querySelector('.ant-table-content') as HTMLDivElement | null
+      )
+    }
+    const topBody = getScrollEl(topRef.current)
+    const bottomBody = getScrollEl(bottomRef.current)
+    if (!topBody || !bottomBody) return
+    // 上部はスクロールバーを出さない
+    topBody.style.overflowX = 'hidden'
+    let syncing = false
+    const onBottom = () => {
+      if (syncing) return
+      syncing = true
+      topBody.scrollLeft = bottomBody.scrollLeft
+      syncing = false
+    }
+    bottomBody.addEventListener('scroll', onBottom)
+    return () => {
+      bottomBody.removeEventListener('scroll', onBottom)
+    }
+  }, [products.length])
+
+  const bodyHeight = 520
+
+  return (
+    <div className="rounded-xl border border-semantic-border bg-white shadow-sm">
+      <div ref={topRef} className="border-b border-semantic-border fixed-top-table">
+        <Table
+          bordered
+          size="small"
+          rowKey="key"
+          columns={columns}
+          dataSource={stickyTopRows}
+          pagination={false}
+          scroll={{ x: "max-content" }}
+          className="text-body"
+        />
       </div>
-      <table className="min-w-full text-left">
-        <thead className="text-caption text-semantic-fg-subtle">
-          <tr>
-            <th className="px-4 py-3 w-10"></th>
-            <th className="px-4 py-3">ランキング</th>
-            <th className="px-4 py-3">保険会社名</th>
-            <th className="px-4 py-3">商品</th>
-            <th className="px-4 py-3">月払い保険料</th>
-            <th className="px-4 py-3">手術給付</th>
-            <th className="px-4 py-3">入院日額</th>
-            <th className="px-4 py-3">1入院限度</th>
-            <th className="px-4 py-3">通算限度</th>
-            <th className="px-4 py-3">通院</th>
-            <th className="px-4 py-3">特約</th>
-            <th className="px-4 py-3">見積・申込</th>
-            <th className="px-4 py-3">資料請求</th>
-            <th className="px-4 py-3">実施状況</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-semantic-border text-body">
-          {products.map((p, idx) => {
-            const checked = selectedIds.includes(p.productId)
-            return (
-              <tr key={p.productId} className="align-middle">
-                <td className="px-4 py-4">
-                  <input type="checkbox" checked={checked} onChange={() => onToggle(p.productId)} aria-label={`${p.productName} を選択`} />
-                </td>
-                <td className="px-4 py-4">
-                  <span className="inline-flex items-center gap-1"><span className="text-h4 text-semantic-fg">{idx + 1}</span><span className="text-caption text-semantic-fg-subtle">位</span></span>
-                </td>
-                <td className="px-4 py-4">{p.insurerName}</td>
-                <td className="px-4 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded bg-semantic-bg border border-semantic-border flex items-center justify-center text-caption text-semantic-fg-subtle">{p.logoText ?? "-"}</div>
-                    <div>
-                      <div className="text-body text-semantic-fg">{p.productName}</div>
-                      <div className="text-caption text-semantic-fg-subtle">{p.policyType === "wholeLife" ? "終身" : "定期"}・{p.renewalType === "renewable" ? "更新型" : "非更新"}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-4">
-                  <span className="text-h3 text-semantic-fg">¥{p.premiumInfo.sampleMonthlyPremium.toLocaleString()}</span>
-                  <span className="text-caption text-semantic-fg-subtle ml-1">/月払</span>
-                </td>
-                <td className="px-4 py-4">{p.surgeryCoverage.surgeryPaymentMethod === "multiplier" ? "倍率" : "定額"}</td>
-                <td className="px-4 py-4">{p.hospitalizationCoverage.hospitalizationDailyAmount.toLocaleString()}円</td>
-                <td className="px-4 py-4">{p.hospitalizationCoverage.hospitalizationLimitPerHospitalization}</td>
-                <td className="px-4 py-4">{p.hospitalizationCoverage.hospitalizationLimitTotal}</td>
-                <td className="px-4 py-4">{p.outpatientCoverage?.outpatientDailyAmount ? `${p.outpatientCoverage.outpatientDailyAmount.toLocaleString()}円` : "-"}</td>
-                <td className="px-4 py-4">
-                  <div className="flex flex-wrap gap-1">
-                    {(p.tags ?? []).slice(0, 4).map((t) => (
-                      <span key={t} className="px-2 py-0.5 rounded border border-semantic-border text-caption text-semantic-fg-subtle">{t}</span>
-                    ))}
-                  </div>
-                </td>
-                <td className="px-4 py-4">
-                  <a href={p.applyUrl ?? "#"} className="inline-block border border-semantic-border rounded-md px-4 py-2">見積・申込</a>
-                </td>
-                <td className="px-4 py-4">
-                  <a href={p.brochureUrl ?? "#"} className="inline-flex items-center gap-2 border border-semantic-border rounded-md px-4 py-2">資料請求</a>
-                </td>
-                <td className="px-4 py-4">
-                  <span className="text-caption text-semantic-fg-subtle">{p.campaign ?? "-"}</span>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+      <div ref={bottomRef}>
+        <Table
+          bordered
+          size="small"
+          rowKey="key"
+          columns={columns}
+          dataSource={scrollingRows}
+          pagination={false}
+          showHeader={false}
+          scroll={{ x: "max-content", y: bodyHeight }}
+          className="text-body"
+        />
+      </div>
     </div>
   )
 }
