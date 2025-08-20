@@ -61,7 +61,7 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
 
   return (
     <div className="min-h-screen bg-semantic-bg">
-      <div className="container mx-auto px-4 py-16">
+      <div className="w-full mx-auto px-4 py-16">
         {/* 条件フォーム */}
         <FilterForm
           age={age}
@@ -83,8 +83,7 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
           }
         />
 
-        {/* 免責/注意 */}
-        <Disclaimer />
+        
       </div>
     </div>
   )
@@ -480,23 +479,25 @@ function ComparisonTable({
       title: "項目",
       dataIndex: "item",
       key: "item",
-      width: 224,
+      width: 36,
       fixed: "left",
       onCell: (record: any) => {
         if (record._group) {
-          return record._isHead ? { rowSpan: record._span, colSpan: 1 } : { rowSpan: 0, colSpan: 1 }
+          return record._isHead
+            ? { rowSpan: record._span, colSpan: 1, className: "first-col-cell vertical-group-cell", style: { textAlign: "center", verticalAlign: "middle" } }
+            : { rowSpan: 0, colSpan: 1, className: "first-col-cell" }
         }
-        return { colSpan: 2, rowSpan: 1 }
+        return { colSpan: 2, rowSpan: 1, className: "first-col-cell" }
       },
-      render: (value: string) => (
-        <span className="text-slate-600">{value}</span>
+      render: (value: string, record: any) => (
+        <span className={record._group ? "" : "text-slate-600"}>{value}</span>
       )
     },
     {
       title: "項目詳細",
       dataIndex: "detail",
       key: "detail",
-      width: 224,
+      width: 200,
       fixed: "left",
       onCell: (record: any) => {
         if (record._group) return { colSpan: 1 }
@@ -518,7 +519,7 @@ function ComparisonTable({
       dataIndex: p.productId,
       key: p.productId,
       align: "center" as const,
-      width: 260
+      width: 208
     }))
   ]
 
@@ -527,9 +528,14 @@ function ComparisonTable({
   const stickyTopRows = cutIndex >= 0 ? dataSource.slice(0, cutIndex + 1) : []
   const scrollingRows = cutIndex >= 0 ? dataSource.slice(cutIndex + 1) : dataSource
 
-  // 横スクロール同期用
+  // 横スクロール同期用（上部カスタムスクロールバー ⇄ 下段テーブル）
   const topRef = useRef<HTMLDivElement | null>(null)
   const bottomRef = useRef<HTMLDivElement | null>(null)
+  const topScrollRef = useRef<HTMLDivElement | null>(null)
+  const topScrollInnerRef = useRef<HTMLDivElement | null>(null)
+  const sectionRef = useRef<HTMLDivElement | null>(null)
+  const [spacerHeight, setSpacerHeight] = useState<number>(0)
+  const stickyWrapRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     const getScrollEl = (wrap: HTMLDivElement | null): HTMLDivElement | null => {
       if (!wrap) return null
@@ -541,38 +547,134 @@ function ComparisonTable({
     const topBody = getScrollEl(topRef.current)
     const bottomBody = getScrollEl(bottomRef.current)
     if (!topBody || !bottomBody) return
-    // 上部はスクロールバーを出さない
+    // 上部/下部のネイティブ横スクロールは隠し、カスタム上部バーを使用
     topBody.style.overflowX = 'hidden'
+    bottomBody.style.overflowX = 'hidden'
+
+    const topScroll = topScrollRef.current
+    const topInner = topScrollInnerRef.current
+    if (!topScroll || !topInner) return
+
+    const syncWidth = () => {
+      const width = Math.max(bottomBody.scrollWidth, bottomBody.clientWidth)
+      topInner.style.width = `${width}px`
+    }
+    syncWidth()
     let syncing = false
     const onBottom = () => {
       if (syncing) return
       syncing = true
+      topScroll.scrollLeft = bottomBody.scrollLeft
       topBody.scrollLeft = bottomBody.scrollLeft
       syncing = false
     }
+    const onTopScroll = () => {
+      if (syncing) return
+      syncing = true
+      bottomBody.scrollLeft = topScroll.scrollLeft
+      topBody.scrollLeft = topScroll.scrollLeft
+      syncing = false
+    }
     bottomBody.addEventListener('scroll', onBottom)
+    topScroll.addEventListener('scroll', onTopScroll)
     return () => {
       bottomBody.removeEventListener('scroll', onBottom)
+      topScroll.removeEventListener('scroll', onTopScroll)
     }
   }, [products.length])
 
+  // 表ボディの高さ分だけページ末尾に余白を作る（スクロール連結用）
+  useEffect(() => {
+    const getBodyEl = (wrap: HTMLDivElement | null): HTMLDivElement | null => {
+      if (!wrap) return null
+      return (
+        (wrap.querySelector('.ant-table-body') as HTMLDivElement | null) ??
+        (wrap.querySelector('.ant-table-content') as HTMLDivElement | null)
+      )
+    }
+
+    const measure = () => {
+      const bodyEl = getBodyEl(bottomRef.current)
+      if (!bodyEl) return
+      // 縦スクロールバー非表示
+      bodyEl.classList.add('hide-y-scrollbar')
+      const h = Math.max(0, bodyEl.scrollHeight - bodyEl.clientHeight)
+      setSpacerHeight(h)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => {
+      window.removeEventListener('resize', measure)
+    }
+  }, [products.length, spacerHeight])
+
   const bodyHeight = 520
 
+  // ホイール操作の委譲
+  useEffect(() => {
+    const getBody = (wrap: HTMLDivElement | null): HTMLDivElement | null => {
+      if (!wrap) return null
+      return (
+        (wrap.querySelector('.ant-table-body') as HTMLDivElement | null) ??
+        (wrap.querySelector('.ant-table-content') as HTMLDivElement | null)
+      )
+    }
+    const container = sectionRef.current
+    const bodyEl = getBody(bottomRef.current)
+    if (!container || !bodyEl) return
+    const onWheel = (e: WheelEvent) => {
+      const rect = container.getBoundingClientRect()
+      const viewportH = window.innerHeight || document.documentElement.clientHeight
+      const delta = e.deltaY
+      const atTop = bodyEl.scrollTop <= 0
+      const atBottom = Math.ceil(bodyEl.scrollTop + bodyEl.clientHeight) >= bodyEl.scrollHeight
+      const topDocked = rect.top <= 0 + 1   // 表上部がビューポート上端に到達
+      const bottomDocked = rect.bottom <= viewportH + 1 // 表下部がビューポート下端に到達
+
+      if (delta > 0) {
+        // 下方向: 表上部がTOPに到達していて、まだテーブル内部に余白があるときだけ委譲
+        if (topDocked && !atBottom) {
+          e.preventDefault()
+          bodyEl.scrollTop += delta
+        }
+      } else if (delta < 0) {
+        // 上方向: 表上部がTOPに到達しており、テーブル内部に上方向の余白がある場合のみ委譲
+        if (topDocked && !atTop) {
+          e.preventDefault()
+          bodyEl.scrollTop += delta
+        }
+      }
+    }
+    window.addEventListener('wheel', onWheel as any, { passive: false })
+    return () => window.removeEventListener('wheel', onWheel as any)
+  }, [products.length])
+
   return (
-    <div className="rounded-xl border border-semantic-border bg-white shadow-sm">
-      <div ref={topRef} className="border-b border-semantic-border fixed-top-table">
-        <Table
-          bordered
-          size="small"
-          rowKey="key"
-          columns={columns}
-          dataSource={stickyTopRows}
-          pagination={false}
-          scroll={{ x: "max-content" }}
-          className="text-body"
-        />
+    <>
+    {/* スティッキーな上部（横スクロールバー + 固定行） */}
+    <div ref={stickyWrapRef} className="sticky top-0 z-40 bg-white border-b border-semantic-border">
+      <div className="w-full">
+        <div ref={topScrollRef} className="top-scrollbar overflow-x-auto border-b border-semantic-border" style={{ height: 14 }}>
+          <div ref={topScrollInnerRef} style={{ height: 1 }} />
+        </div>
+        <div ref={topRef} className="w-full fixed-top-table">
+          <Table
+            bordered
+            size="small"
+            rowKey="key"
+            columns={columns}
+            dataSource={stickyTopRows}
+            pagination={false}
+            scroll={{ x: "max-content" }}
+            className="text-body"
+          />
+        </div>
       </div>
-      <div ref={bottomRef}>
+    </div>
+
+    {/* 可変行コンテナ */}
+    <div ref={sectionRef} className="w-full rounded-xl border border-semantic-border bg-white shadow-sm">
+      <div ref={bottomRef} className="w-full">
         <Table
           bordered
           size="small"
@@ -581,27 +683,15 @@ function ComparisonTable({
           dataSource={scrollingRows}
           pagination={false}
           showHeader={false}
-          scroll={{ x: "max-content", y: bodyHeight }}
+          scroll={{ x: "max-content" }}
           className="text-body"
         />
       </div>
     </div>
+    {/* スクロール用の不可視スペーサ（コンテナ外に配置） */}
+    <div aria-hidden style={{ height: `${spacerHeight}px` }} />
+    </>
   )
 }
 
 // カード表示は不要のため削除
-
-/**
- * 免責/注意文言
- * @returns {JSX.Element} 画面要素
- */
-function Disclaimer(): JSX.Element {
-  return (
-    <div className="mt-10 text-caption text-semantic-fg-subtle space-y-1">
-      <p>掲載している保険料および保障内容などはデモ用の一例です。条件により異なります。</p>
-      <p>商品詳細は各保険会社の資料・約款等をご確認ください。本表示は募集資料ではありません。</p>
-    </div>
-  )
-}
-
-
