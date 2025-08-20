@@ -20,7 +20,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Table } from "antd"
 import type { ColumnsType } from "antd/es/table"
-import { Crown } from "lucide-react"
+import { Crown, Check } from "lucide-react"
 import { productCatalog, type Product, type Gender } from "./productData"
 
 /**
@@ -61,7 +61,7 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
 
   return (
     <div className="min-h-screen bg-semantic-bg">
-      <div className="w-full mx-auto px-4 py-16">
+      <div className="w-full mx-auto py-8">
         {/* 条件フォーム */}
         <FilterForm
           age={age}
@@ -120,7 +120,7 @@ interface FilterFormProps {
 function FilterForm(props: FilterFormProps): JSX.Element {
   const { age, gender, dailyAmount, sortKey, onChangeAge, onChangeGender, onChangeDailyAmount, onChangeSortKey } = props
   return (
-    <div className="mb-8 rounded-lg border border-semantic-border p-6 bg-semantic-bg">
+    <div className="mb-8 rounded-lg p-6 bg-semantic-bg">
       <form className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div>
           <label className="block text-caption text-semantic-fg-subtle mb-1">年齢</label>
@@ -476,11 +476,22 @@ function ComparisonTable({
   // カラム定義
   const columns: ColumnsType<any> = [
     {
-      title: "項目",
+      title: (
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 border border-blue-300 rounded-xl px-3 py-1 bg-white hover:bg-blue-50 shadow-sm"
+        >
+          <span className="w-5 h-5 rounded-sm bg-blue-600 text-white inline-flex items-center justify-center">
+            <Check className="w-4 h-4" />
+          </span>
+          <span className="text-blue-600 font-semibold text-sm">チェックした商品を比較</span>
+        </button>
+      ),
       dataIndex: "item",
       key: "item",
       width: 36,
       fixed: "left",
+      onHeaderCell: () => ({ colSpan: 2 }) as any,
       onCell: (record: any) => {
         if (record._group) {
           return record._isHead
@@ -494,11 +505,12 @@ function ComparisonTable({
       )
     },
     {
-      title: "項目詳細",
+      title: "",
       dataIndex: "detail",
       key: "detail",
       width: 200,
       fixed: "left",
+      onHeaderCell: () => ({ colSpan: 0 }) as any,
       onCell: (record: any) => {
         if (record._group) return { colSpan: 1 }
         return { colSpan: 0 }
@@ -511,6 +523,8 @@ function ComparisonTable({
       title: (
         <input
           type="checkbox"
+          className="accent-blue-600 scale-150"
+          style={{ transformOrigin: "center" }}
           checked={selectedIds.includes(p.productId)}
           onChange={() => onToggle(p.productId)}
           aria-label={`${p.productName} を選択`}
