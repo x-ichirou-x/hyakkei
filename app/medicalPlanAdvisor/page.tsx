@@ -1111,18 +1111,7 @@ function ComparisonTable({
     return val || 'ー'
   }
 
-  // 募集文書番号（CSV 72行）
-  const docNumberCsvLine: string = '募集文書番号,,代HS-23-471-460（2024.2）,ORIX2025-F-018,募補06148-20240912,N-B-24-0620（240827）,HP-M311-768-25049059(2025.4.1),2-2023-295(2024.3.15),募資S-2307-343-DB,LN_BB_PBD-678 (有効期限：2027/6/30) ,FLI-C20491-2412,ORIX2025-F-018,LN_BB_ZNP-47(有効期限：2026/9/30),個-900-24-897(2025/3/31),2-2023-298(2024.3.15),2024 - H - 0264　( 2024/07/11 - 2026/07/31 ),(登)B24N1066（2024.6.21）,2311-KL08-H0293,2311-KL08-H0293,HL-P-B1-24-00828（使用期限：2025.10.31）,AFH234-2023-0578 9月15日(250915),HP-M341-768-25049059(2025.4.1)'
-
-  const getDocNumberCell = (productName: string): string => {
-    const csvName = canonicalName(productName)
-    const idx = csvProductOrder.indexOf(csvName)
-    if (idx < 0) return "-"
-    const cols = splitCsvLine(docNumberCsvLine)
-    const raw = (cols[2 + idx] ?? '').trim()
-    const val = raw.replace(/^\"|\"$/g, '').trim()
-    return val || 'ー'
-  }
+  // 募集文書番号は非表示（利用しない）
 
   const formatPayingPeriod = (value: string): string => {
     if (!value) return "-"
@@ -1484,12 +1473,7 @@ function ComparisonTable({
       align: "center",
       render: (p) => (<span className="whitespace-pre-line">{getPlanNameOrCoverageCell(p.productName)}</span>)
     },
-    {
-      key: "docNumber",
-      label: "募集文書番号",
-      align: "center",
-      render: (p) => getDocNumberCell(p.productName)
-    },
+    // 募集文書番号 行は非表示化
     {
       key: "apply",
       label: "見積り・申込み",
@@ -1551,8 +1535,7 @@ function ComparisonTable({
     "加入年齢",
     "申込方法",
     "備考",
-    "プラン名または保障内容",
-    "募集文書番号"
+    "プラン名または保障内容"
   ]
 
   const rowByLabel = new Map(rows.map(r => [r.label, r]))

@@ -205,7 +205,7 @@ function createPrompt(selections: Record<string, string[] | null | undefined>, a
     includedRiders: inferIncludedRiders(p)
   }))
 
-  return `以下は医療保険の商品一覧（20件）です。ユーザーの希望に適合する商品だけを 3〜6 件選び、厳密な JSON のみを出力してください。
+  return `以下は医療保険の商品一覧（20件）です。ユーザーの希望に適合する商品だけを 3〜6 件選び、厳密な JSON のみを出力してください。可能なら 4〜5 件の選定を優先してください（3 未満や 6 超は不可）。
 
 【ユーザー希望（AI条件）】
 ${JSON.stringify(criteria)}
@@ -218,7 +218,7 @@ ${JSON.stringify(products)}
 【出力仕様（厳守）】
 1) JSONのみを出力する（説明や前後文は絶対に書かない）
 2) 形式: {"productIds": string[], "aiCriteria": AiCriteria, "rationale": string}
-3) productIds は上の一覧の productId のみを使用し、重複なし、かつ長さは3〜6
+3) productIds は上の一覧の productId のみを使用し、重複なし、かつ長さは3〜6（可能なら4〜5件を優先）
 4) 全件一致や0件を避ける。適合度の高いものから選ぶ
 5) aiCriteria は上記希望を再掲・補足（省略可のキーは省略可）
 6) rationale には短い理由を日本語で記述
