@@ -21,7 +21,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Table, Modal, Button, Checkbox, Radio } from "antd"
 import Image from "next/image"
 import type { ColumnsType } from "antd/es/table"
-import { Crown, Check } from "lucide-react"
+import { Crown, Check, MessageCircle } from "lucide-react"
 import { productCatalog, type Product, type Gender } from "./productData"
 
 /**
@@ -110,6 +110,107 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
 
     const bodyPolite = toPolite(text)
     return `${head}\n\n理由:\n${bodyPolite}`
+  }
+
+  /**
+   * 診断結果から商品名を抽出（ID→商品名の置換も考慮）
+   * @param {string | null} raw 診断テキスト
+   * @param {string[] | null} ids サーバ診断で返った商品ID一覧
+   * @returns {string[]} 抽出された商品名（重複除去、順序は出現順/ids優先）
+   */
+  function extractRecommendedNames(raw: string | null, ids: string[] | null): string[] {
+    const names: string[] = []
+    // まずIDがあればそれを優先
+    if (Array.isArray(ids) && ids.length > 0) {
+      ids.forEach(id => {
+        const p = productCatalog.find(pp => pp.productId === id)
+        if (p && !names.includes(p.productName)) names.push(p.productName)
+      })
+    }
+    if (!raw) return names
+    let text = String(raw)
+    // ID→商品名へ置換
+    productCatalog.forEach(p => {
+      const re = new RegExp(`\\b${p.productId}\\b`, 'g')
+      text = text.replace(re, p.productName)
+    })
+    // テキストに含まれる商品名を抽出
+    productCatalog.forEach(p => {
+      if (text.includes(p.productName) && !names.includes(p.productName)) names.push(p.productName)
+    })
+    return names
+  }
+
+  /**
+   * 理由本文を丁寧語に整形（ヘッダは付けない）
+   * @param {string} raw 診断テキスト
+   * @returns {string} 丁寧語に整形した本文
+   */
+  function toPoliteRationale(raw: string): string {
+    let text = String(raw)
+    const politeMap: Array<[RegExp, string]> = [
+      [/希望$/, 'ご希望です'],
+      [/合致$/, '合致しています'],
+      [/選定$/, '選定しました'],
+      [/考慮$/, '考慮しました'],
+      [/優先$/, '優先します'],
+      [/対応$/, '対応しています'],
+      [/推奨$/, '推奨いたします'],
+    ]
+    const lines = text.split(/\n+/)
+    const fixedLines = lines.map(line => {
+      const parts = line.split('。')
+      const fixedParts = parts.map(segRaw => {
+        const s = segRaw.trim()
+        if (!s) return ''
+        let t = s
+        for (const [re, rep] of politeMap) t = t.replace(re, rep)
+        if (!/(です|ます|でした|でしたら|しています|しました|いたします|ございます|ください)$/.test(t)) {
+          t = `${t}です`
+        }
+        return t
+      }).filter(Boolean)
+      return fixedParts.join('。')
+    })
+    return fixedLines.join('\n')
+  }
+
+  /**
+   * おすすめ商品（箇条書き）テキストを生成
+   */
+  function buildRecommendationBullet(raw: string | null, ids: string[] | null): string {
+    const names = extractRecommendedNames(raw, ids)
+    const list = names.slice(0, Math.max(3, Math.min(6, names.length)))
+    const bullets = list.map(n => `・${n}`).join('\n')
+    return `ご回答の傾向から、\n${bullets}\nが特におすすめです。`
+  }
+
+  /**
+   * おすすめ理由の要約（約200文字、丁寧語）
+   * @param {string | null} raw 診断テキスト
+   * @returns {string} 丁寧語で約200文字の要約
+   */
+  function buildPoliteReasonSummary(raw: string | null): string {
+    if (!raw) return ""
+    let text = String(raw)
+    // ID→商品名
+    productCatalog.forEach(p => {
+      const re = new RegExp(`\\b${p.productId}\\b`, 'g')
+      text = text.replace(re, p.productName)
+    })
+    // 丁寧語化
+    const polite = toPoliteRationale(text).replace(/\n+/g, '\n').trim()
+    const maxLen = 200
+    if (polite.length <= maxLen) return polite
+    // 200文字以内で直近の句点まで切る（最低100文字は確保）
+    const boundary = polite.lastIndexOf('。', maxLen)
+    if (boundary >= 100) return polite.slice(0, boundary + 1)
+    // 句点が見つからない場合は切って丁寧に終わらせる
+    let cut = polite.slice(0, maxLen)
+    if (!/(です。|ます。|しました。|しています。)$/.test(cut)) {
+      cut = `${cut}です。`
+    }
+    return cut
   }
 
   /** 質問定義（簡易版） */
@@ -464,7 +565,12 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
 
         {/* プラン提案ダイアログ（段階的実装） */}
         <Modal
-          title="AIプラン提案"
+          title={(
+            <div className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-blue-600" />
+              <span>AI保険相談</span>
+            </div>
+          )}
           open={isProposalOpen}
           onCancel={() => { setIsProposalOpen(false); setProposalStep(0); setDiagRationale(null); setDiagAiCriteria(null) }}
           footer={null}
@@ -472,69 +578,113 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
           width={720}
         >
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-500">ステップ {proposalStep + 1} / {proposalQuestions.length}</span>
-            </div>
-            {(() => {
-              const q = proposalQuestions[proposalStep]
-              if (!q) return null
-              return (
-                <div className="space-y-3">
-                  <div className="text-base font-medium text-slate-800">{q.title}</div>
-                  <div className="space-y-2">
-                    {q.options.map(opt => {
-                      const selected = proposalSelections[q.id]?.has(opt.id) ?? false
-                      if (q.multi) {
-                        return (
-                          <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
-                            <Checkbox
-                              checked={selected}
-                              onChange={() => toggleProposalOption(q.id, opt.id, true)}
-                            />
-                            <span className="text-slate-700">{opt.label}</span>
-                          </label>
-                        )
-                      }
-                      return (
-                        <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
-                          <Radio
-                            checked={selected}
-                            onChange={() => toggleProposalOption(q.id, opt.id, false)}
-                          />
-                          <span className="text-slate-700">{opt.label}</span>
-                        </label>
-                      )
-                    })}
+            {isDiagnosing ? (
+              <div className="bg-white shadow-sm border border-slate-200 rounded-lg">
+                <div className="p-4 text-center">
+                  <div className="text-4xl mb-2">🤖</div>
+                  <div className="text-lg font-semibold text-blue-700 mb-2">AI診断実行中</div>
+                  <div className="py-4">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-1">AIがあなたの回答を分析中です</p>
+                    <p className="text-xs text-slate-500">しばらくお待ちください…</p>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-left mx-auto max-w-md">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-xs text-slate-700">回答の分析完了</span>
+                    </div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      <span className="text-xs text-slate-700">AIによる診断実行中</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-slate-300 rounded-full"></div>
+                      <span className="text-xs text-slate-500">結果生成中</span>
+                    </div>
                   </div>
                 </div>
-              )
-            })()}
-            <div className="flex flex-col gap-3 pt-2">
-              {diagRationale && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <div className="font-medium text-blue-800 mb-1">診断理由</div>
-                  <div className="text-sm text-slate-700 whitespace-pre-line">{humanizeRationale(diagRationale)}</div>
+              </div>
+            ) : diagRationale ? (
+              <div className="bg-white shadow-sm border border-slate-200 rounded-lg">
+                <div className="p-4 text-center">
+                  <div className="text-4xl mb-2">🎯</div>
+                  <div className="text-lg font-semibold text-green-700">AI診断結果</div>
                 </div>
-              )}
-              <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                  <Button onClick={() => {
-                    if (proposalStep === 0) { setIsProposalOpen(false); return }
-                    setProposalStep(s => Math.max(0, s - 1))
-                  }}>戻る</Button>
-                  {proposalStep < proposalQuestions.length - 1 ? (
-                    <Button type="primary" onClick={() => setProposalStep(s => Math.min(proposalQuestions.length - 1, s + 1))}>次へ</Button>
-                  ) : (
-                    diagRationale ? (
-                      <>
-                        <Button onClick={() => { setDiagRationale(null); setDiagAiCriteria(null); setDiagnosedProductIds(null) }}>再診断</Button>
-                        <Button type="primary" onClick={() => {
-                          const crit = diagAiCriteria ?? buildCriteriaFromSelections()
-                          setAiCriteria(crit)
-                          setIsProposalOpen(false)
-                          setProposalStep(0)
-                        }}>条件を適用</Button>
-                      </>
+                <div className="px-4 pb-4 space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-left">
+                    <div className="font-medium text-blue-800 mb-1">おすすめ商品</div>
+                    <div className="text-sm text-slate-700 whitespace-pre-line">{buildRecommendationBullet(diagRationale, diagnosedProductIds)}</div>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-left">
+                    <div className="font-medium text-blue-800 mb-1">おすすめ理由</div>
+                    <div className="text-sm text-slate-700 whitespace-pre-line">{buildPoliteReasonSummary(diagRationale)}</div>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      onClick={() => {
+                        const crit = diagAiCriteria ?? buildCriteriaFromSelections()
+                        setAiCriteria(crit)
+                        setIsProposalOpen(false)
+                        setProposalStep(0)
+                      }}
+                      type="primary"
+                    >
+                      適用する
+                    </Button>
+                    <Button onClick={() => { setDiagRationale(null); setDiagAiCriteria(null); setDiagnosedProductIds(null) }}>もう一度診断する</Button>
+                    <Button onClick={() => { setIsProposalOpen(false); setProposalStep(0) }}>終了する</Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-500">ステップ {proposalStep + 1} / {proposalQuestions.length}</span>
+                </div>
+                {(() => {
+                  const q = proposalQuestions[proposalStep]
+                  if (!q) return null
+                  return (
+                    <div className="space-y-3">
+                      <div className="text-base font-medium text-slate-800">{q.title}</div>
+                      <div className="space-y-2">
+                        {q.options.map(opt => {
+                          const selected = proposalSelections[q.id]?.has(opt.id) ?? false
+                          if (q.multi) {
+                            return (
+                              <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
+                                <Checkbox
+                                  checked={selected}
+                                  onChange={() => toggleProposalOption(q.id, opt.id, true)}
+                                />
+                                <span className="text-slate-700">{opt.label}</span>
+                              </label>
+                            )
+                          }
+                          return (
+                            <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
+                              <Radio
+                                checked={selected}
+                                onChange={() => toggleProposalOption(q.id, opt.id, false)}
+                              />
+                              <span className="text-slate-700">{opt.label}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })()}
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex gap-2">
+                    <Button onClick={() => {
+                      if (proposalStep === 0) { setIsProposalOpen(false); return }
+                      setProposalStep(s => Math.max(0, s - 1))
+                    }}>戻る</Button>
+                    {proposalStep < proposalQuestions.length - 1 ? (
+                      <Button type="primary" onClick={() => setProposalStep(s => Math.min(proposalQuestions.length - 1, s + 1))}>次へ</Button>
                     ) : (
                       <Button type="primary" loading={isDiagnosing} onClick={async () => {
                         try {
@@ -566,11 +716,11 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
                           setIsDiagnosing(false)
                         }
                       }}>診断する</Button>
-                    )
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </Modal>
 
