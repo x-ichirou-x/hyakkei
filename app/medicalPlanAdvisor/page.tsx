@@ -18,7 +18,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Table } from "antd"
+import { Table, Modal, Button, Checkbox, Radio } from "antd"
 import Image from "next/image"
 import type { ColumnsType } from "antd/es/table"
 import { Crown, Check } from "lucide-react"
@@ -41,6 +41,259 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   // 比較表示用に可視列を制御（null = 全件表示）
   const [visibleProductIds, setVisibleProductIds] = useState<string[] | null>(null)
+  /** プラン提案ダイアログの開閉状態 */
+  const [isProposalOpen, setIsProposalOpen] = useState<boolean>(false)
+  /** プラン提案ダイアログの現在ステップ */
+  const [proposalStep, setProposalStep] = useState<number>(0)
+  /** プラン提案での一時的な選択状態（質問ID→選択ID集合） */
+  const [proposalSelections, setProposalSelections] = useState<Record<string, Set<string>>>({})
+  /** サーバ診断の結果商品（存在時はこれを優先採用） */
+  const [diagnosedProductIds, setDiagnosedProductIds] = useState<string[] | null>(null)
+  /** 診断中フラグ */
+  const [isDiagnosing, setIsDiagnosing] = useState<boolean>(false)
+  /** 診断理由（適用前のプレビュー） */
+  const [diagRationale, setDiagRationale] = useState<string | null>(null)
+  /** 診断で推定されたAI条件（適用まで一時保持） */
+  const [diagAiCriteria, setDiagAiCriteria] = useState<AiCriteria | null>(null)
+
+  // 診断理由のユーザー向け整形（内部ID→商品名、やわらかい前置き）
+  const humanizeRationale = (raw: string | null): string => {
+    if (!raw) return ""
+    let text = String(raw)
+    // ID→商品名
+    const idToName: Record<string, string> = {}
+    productCatalog.forEach(p => { idToName[p.productId] = p.productName })
+    Object.entries(idToName).forEach(([id, name]) => {
+      const re = new RegExp(`\\b${id}\\b`, 'g')
+      text = text.replace(re, name)
+    })
+    // 含まれている商品名を抽出
+    const mentionedNames: string[] = []
+    productCatalog.forEach(p => {
+      if (text.includes(p.productName) && !mentionedNames.includes(p.productName)) mentionedNames.push(p.productName)
+    })
+    const head = mentionedNames.length > 0
+      ? `ご回答の傾向から、${mentionedNames.slice(0, 3).join("、")} などが特におすすめです。`
+      : `ご回答の傾向から、いくつかの候補が特におすすめです。`
+
+    // です・ます調への簡易整形
+    const politeMap: Array<[RegExp, string]> = [
+      [/希望$/, 'ご希望です'],
+      [/合致$/, '合致しています'],
+      [/選定$/, '選定しました'],
+      [/考慮$/, '考慮しました'],
+      [/優先$/, '優先します'],
+      [/対応$/, '対応しています'],
+      [/推奨$/, '推奨いたします'],
+    ]
+    const toPolite = (body: string): string => {
+      const lines = body.split(/\n+/)
+      const fixedLines = lines.map(line => {
+        const parts = line.split('。')
+        const fixedParts = parts.map((seg, idx) => {
+          const s = seg.trim()
+          if (!s) return ''
+          let t = s
+          for (const [re, rep] of politeMap) {
+            t = t.replace(re, rep)
+          }
+          // 語尾が丁寧形で終わらない場合は「です」を付加
+          if (!/(です|ます|でした|でしたら|しています|しました|いたします|ございます|ください)$/.test(t)) {
+            t = `${t}です`
+          }
+          return t
+        }).filter(Boolean)
+        return fixedParts.join('。')
+      })
+      return fixedLines.join('\n')
+    }
+
+    const bodyPolite = toPolite(text)
+    return `${head}\n\n理由:\n${bodyPolite}`
+  }
+
+  /** 質問定義（簡易版） */
+  interface ProposalOption { id: string; label: string; }
+  interface ProposalQuestion { id: string; title: string; multi: boolean; options: ProposalOption[] }
+  const proposalQuestions: ProposalQuestion[] = [
+    {
+      id: "q1",
+      title: "今、一番重視したいポイントはどれですか？（複数選択可）",
+      multi: true,
+      options: [
+        { id: "advanced_med", label: "先進医療の高額治療費に備えたい" },
+        { id: "cancer_long", label: "がん等の長期治療でも手厚くしたい（手術倍率など）" },
+        { id: "income_drop", label: "退院後の通院などで生活費の不足が心配" }
+      ]
+    },
+    {
+      id: "q2",
+      title: "入院が長期化した場合の備えは必要ですか？（単一選択）",
+      multi: false,
+      options: [
+        { id: "short", label: "短期が主。長期はあまり想定しない" },
+        { id: "mid", label: "中期まで備えたい" },
+        { id: "long", label: "長期にも備えたい（無制限や高倍率に関心）" }
+      ]
+    },
+    {
+      id: "q3",
+      title: "保険料の支払い方の志向は？（単一選択）",
+      multi: false,
+      options: [
+        { id: "light_monthly", label: "毎月の負担を軽く（月払・クレカ希望）" },
+        { id: "finish_early", label: "働けるうちに早めに払い終えたい（年払・口座希望）" }
+      ]
+    },
+    {
+      id: "q4",
+      title: "入院日額はどの水準を希望しますか？（単一選択）",
+      multi: false,
+      options: [
+        { id: "h5000", label: "5,000円/日" },
+        { id: "h10000", label: "10,000円/日" }
+      ]
+    },
+    {
+      id: "q5",
+      title: "1入院の限度日数の志向は？（単一選択）",
+      multi: false,
+      options: [
+        { id: "limit60", label: "60日型で十分" },
+        { id: "limitLong", label: "長期にも備えたい" }
+      ]
+    },
+    {
+      id: "q6",
+      title: "通院保障は必要ですか？（単一選択）",
+      multi: false,
+      options: [
+        { id: "needOut", label: "必要" },
+        { id: "noOut", label: "不要" }
+      ]
+    },
+    {
+      id: "q7",
+      title: "保険期間は？（単一選択）",
+      multi: false,
+      options: [
+        { id: "whole", label: "終身" },
+        { id: "term10", label: "定期（10年）" }
+      ]
+    },
+    {
+      id: "q8",
+      title: "含めたい特約があれば選択（複数選択可）",
+      multi: true,
+      options: [
+        { id: "rider_advanced", label: "先進医療特約" },
+        { id: "rider_outpatient", label: "通院特約" },
+        { id: "rider_waiver", label: "保険料払込免除特約" }
+      ]
+    },
+    {
+      id: "q9",
+      title: "健康還付（ボーナス）があるタイプは？（単一選択）",
+      multi: false,
+      options: [
+        { id: "bonus_yes", label: "あるほうが良い" },
+        { id: "bonus_no", label: "こだわらない" }
+      ]
+    },
+    {
+      id: "q10",
+      title: "支払回数の希望は？（単一選択）",
+      multi: false,
+      options: [
+        { id: "freq_month", label: "月払" },
+        { id: "freq_annual", label: "年払" }
+      ]
+    }
+  ]
+
+  /** 選択トグル */
+  const toggleProposalOption = (qid: string, oid: string, multi: boolean) => {
+    setProposalSelections(prev => {
+      const cur = new Set(prev[qid] ?? [])
+      if (multi) {
+        if (cur.has(oid)) cur.delete(oid)
+        else cur.add(oid)
+        return { ...prev, [qid]: cur }
+      }
+      return { ...prev, [qid]: new Set([oid]) }
+    })
+  }
+
+  /** 回答→AI条件へ変換 */
+  const buildCriteriaFromSelections = (): AiCriteria => {
+    const s = proposalSelections
+    const get = (qid: string) => Array.from(s[qid] ?? [])
+    const c: AiCriteria = {}
+    const q1 = get("q1")
+    if (q1.includes("advanced_med")) c.needsAdvancedMedical = true
+    if (q1.includes("cancer_long")) c.preferHighMultiplier = true
+    if (q1.includes("income_drop")) c.wantsOutpatient = true
+    const q2 = get("q2")
+    if (q2.includes("long")) c.preferHighMultiplier = true
+    const q3 = get("q3")
+    if (q3.includes("light_monthly")) {
+      c.preferredPaymentFrequencies = ["monthly"]
+      c.preferredPaymentRoutes = ["creditCard"]
+    }
+    if (q3.includes("finish_early")) {
+      c.preferredPaymentFrequencies = ["annual"]
+      c.preferredPaymentRoutes = ["account"]
+    }
+    const q4 = get("q4")
+    if (q4.includes("h5000")) {
+      // デモ: 入院日額5,000円
+      // 実配列は比較表のフィルタに反映（列のAI診断はラベル表示のみ）
+    }
+    const q5 = get("q5")
+    if (q5.includes("limitLong")) c.preferHighMultiplier = true
+    const q6 = get("q6")
+    if (q6.includes("needOut")) c.wantsOutpatient = true
+    const q7 = get("q7")
+    // デモ: policyType の希望は scoring で軽微加点に使うなら別途拡張可能
+    const q8 = get("q8")
+    if (q8.includes("rider_advanced")) (c.requiredIncludedRiderKeywords ??= []).push("先進医療")
+    if (q8.includes("rider_outpatient")) (c.requiredIncludedRiderKeywords ??= []).push("通院")
+    if (q8.includes("rider_waiver")) (c.requiredIncludedRiderKeywords ??= []).push("払込免除")
+    const q9 = get("q9")
+    if (q9.includes("bonus_yes")) c.preferHealthBonus = true
+    const q10 = get("q10")
+    if (q10.includes("freq_month")) c.preferredPaymentFrequencies = ["monthly"]
+    if (q10.includes("freq_annual")) c.preferredPaymentFrequencies = ["annual"]
+    return c
+  }
+
+  /**
+   * AI診断の条件（比較表正規化フィールドに対応）
+   * - 必要最低限の条件のみを定義。未指定は評価対象外。
+   */
+  type AiCriteria = {
+    /** 先進医療を重視するか */
+    needsAdvancedMedical?: boolean
+    /** 通院保障を重視するか */
+    wantsOutpatient?: boolean
+    /** 手術倍率の高い型を重視するか */
+    preferHighMultiplier?: boolean
+    /** 死亡保障の有無を重視するか */
+    requireDeathBenefit?: boolean
+    /** 健康還付（健康ボーナス）を重視するか */
+    preferHealthBonus?: boolean
+    /** 払込経路の希望 */
+    preferredPaymentRoutes?: Array<"account" | "creditCard">
+    /** 支払回数の希望 */
+    preferredPaymentFrequencies?: Array<"monthly" | "semiannual" | "annual">
+    /** 必須の含まれている特約キーワード（一部一致） */
+    requiredIncludedRiderKeywords?: string[]
+  }
+
+  /** AI診断からの条件（未適用なら null） */
+  const [aiCriteria, setAiCriteria] = useState<AiCriteria | null>(null)
+
+  
 
   /**
    * フィルタとソート済みの商品一覧
@@ -62,23 +315,271 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
     return sorted
   }, [age, dailyAmount, sortKey])
 
+
+  /**
+   * 商品のスコアリング（AI条件ベース）
+   * - 条件一致で加点し、総合点でランク付け
+   */
+  function inferHasAdvancedMedical(p: Product): boolean {
+    return Boolean(p.riders?.advancedMedicalRider)
+  }
+  function inferHasOutpatient(p: Product): boolean {
+    return (p.outpatientCoverage?.outpatientDailyAmount ?? 0) > 0
+  }
+  function inferHasHighMultiplier(p: Product): boolean {
+    if (p.surgeryCoverage.surgeryPaymentMethod !== "multiplier") return false
+    const mults = p.surgeryCoverage.surgeryMultipliers ? Object.values(p.surgeryCoverage.surgeryMultipliers) : []
+    return mults.some(v => (v ?? 0) >= 10)
+  }
+  function inferHasDeathBenefit(p: Product): boolean {
+    return /死亡/.test(p.productName)
+  }
+  function inferHasHealthBonus(p: Product): boolean {
+    const tags = p.tags ?? []
+    if (tags.some(t => t.includes("お金戻ってくる") || t.includes("健康還付"))) return true
+    return /リターン/.test(p.productName)
+  }
+  function inferPaymentRoutes(p: Product): Array<"account" | "creditCard"> {
+    // 簡易モデル: 多くの商品が両対応と仮定
+    if (p.productName.includes("入院一時金保険")) return ["creditCard"]
+    return ["account", "creditCard"]
+  }
+  function inferPaymentFrequencies(p: Product): Array<"monthly" | "semiannual" | "annual"> {
+    if (p.paymentMode === "monthly") return ["monthly"]
+    if (p.paymentMode === "yearly") return ["annual"]
+    return ["monthly"]
+  }
+  function inferIncludedRiders(p: Product): string[] {
+    const riders: string[] = []
+    if (p.riders?.advancedMedicalRider) riders.push("先進医療特約")
+    if (p.outpatientCoverage && (p.outpatientCoverage.outpatientDailyAmount ?? 0) > 0) riders.push("通院特約")
+    if (p.riders?.waiverRider) riders.push("保険料払込免除特約")
+    if (p.riders?.hospitalizationLumpSumRider) riders.push("入院一時給付特約")
+    if (p.riders?.injuryFractureRider) riders.push("特定損傷特約")
+    if (p.riders?.disabilityIncomeOrWorkIncapacityRider) riders.push("就業不能特約")
+    if (p.riders?.womenSpecificRider) riders.push("女性疾病特約")
+    if ((p.riders?.criticalIllnessRiders ?? []).length > 0) riders.push("三大疾病関連特約")
+    return riders
+  }
+  const scoreProductByCriteria = (p: Product, criteria: AiCriteria): { score: number; hardMatches: number } => {
+    let score = 0
+    let hardMatches = 0
+    if (criteria.needsAdvancedMedical) {
+      const ok = inferHasAdvancedMedical(p)
+      if (ok) { score += 2; hardMatches += 1 }
+    }
+    if (criteria.wantsOutpatient) {
+      const ok = inferHasOutpatient(p)
+      if (ok) { score += 1; hardMatches += 1 }
+    }
+    if (criteria.preferHighMultiplier) {
+      const ok = inferHasHighMultiplier(p)
+      if (ok) { score += 1; hardMatches += 1 }
+    }
+    if (criteria.requireDeathBenefit) {
+      const ok = inferHasDeathBenefit(p)
+      if (ok) { score += 1; hardMatches += 1 }
+    }
+    if (criteria.preferHealthBonus) {
+      const ok = inferHasHealthBonus(p)
+      if (ok) { score += 1; hardMatches += 1 }
+    }
+    if (Array.isArray(criteria.preferredPaymentRoutes) && criteria.preferredPaymentRoutes.length > 0) {
+      const have = inferPaymentRoutes(p)
+      const ok = criteria.preferredPaymentRoutes.some(r => have.includes(r))
+      if (ok) { score += 1; hardMatches += 1 }
+    }
+    if (Array.isArray(criteria.preferredPaymentFrequencies) && criteria.preferredPaymentFrequencies.length > 0) {
+      const have = inferPaymentFrequencies(p)
+      const ok = criteria.preferredPaymentFrequencies.some(f => have.includes(f))
+      if (ok) { score += 1; hardMatches += 1 }
+    }
+    if (Array.isArray(criteria.requiredIncludedRiderKeywords) && criteria.requiredIncludedRiderKeywords.length > 0) {
+      const hay = inferIncludedRiders(p).join(" ")
+      const ok = criteria.requiredIncludedRiderKeywords.every(kw => hay.includes(kw))
+      if (ok) { score += 1; hardMatches += 1 }
+    }
+    // 人気は並びの安定化用（抽出条件には含めない）
+    score += Math.min(1, Math.max(0, p.popularity / 100))
+    return { score, hardMatches }
+  }
+
+  /**
+   * AI条件を適用して可視列を更新
+   * - スコア > 0 の商品を抽出し、スコア降順で表示
+   */
+  useEffect(() => {
+    if (!aiCriteria) return
+    // サーバ診断があればそれを優先
+    if (Array.isArray(diagnosedProductIds) && diagnosedProductIds.length > 0) {
+      setVisibleProductIds(diagnosedProductIds)
+      setSelectedIds(diagnosedProductIds)
+      return
+    }
+    // ローカルフォールバック
+    const evaluated = filteredAndSorted
+      .map(p => ({ p, ...scoreProductByCriteria(p, aiCriteria) }))
+    const matched = evaluated
+      .filter(x => x.hardMatches > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(x => x.p.productId)
+    setVisibleProductIds(matched.length > 0 ? matched : null)
+    setSelectedIds(matched)
+  }, [aiCriteria, filteredAndSorted, diagnosedProductIds])
+
   return (
     <div className="min-h-screen bg-semantic-bg">
       <div className="w-full mx-auto py-8">
         
 
         {/* アイコンバナー（分析ボタン） */}
-        <div className="mb-4 flex justify-start">
-          <button type="button" aria-label="分析ツールを開く" className="transition-opacity hover:opacity-90">
-            <Image src="/analisys_button.png" alt="チェックした商品の分析" width={240} height={69} priority />
+        <div className="mb-4 flex items-center gap-3 justify-start">
+          <button
+            type="button"
+            aria-label="AI条件をトグル"
+            className="transition-opacity hover:opacity-90"
+            onClick={() => {
+              // 第1段階: ボタン押下でプラン提案ダイアログを開く（診断プレビューを初期化）
+              setDiagRationale(null)
+              setDiagAiCriteria(null)
+              setDiagnosedProductIds(null)
+              setIsProposalOpen(true)
+            }}
+          >
+            <Image src="/analisys_button.png" alt="AI条件を適用" width={240} height={69} priority style={{ height: 'auto' }} />
           </button>
+          {aiCriteria && (
+            <div className="flex items-center gap-2 text-sm text-slate-700">
+              <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded border border-blue-200">AI条件適用中</span>
+              {aiCriteria.needsAdvancedMedical && <span className="px-2 py-1 bg-slate-100 rounded">先進医療</span>}
+              {aiCriteria.preferHighMultiplier && <span className="px-2 py-1 bg-slate-100 rounded">手術高倍率</span>}
+              <button
+                type="button"
+                className="ml-1 text-blue-700 underline"
+                onClick={() => { setAiCriteria(null); setVisibleProductIds(null) }}
+              >条件をクリア</button>
+            </div>
+          )}
         </div>
+
+        {/* プラン提案ダイアログ（段階的実装） */}
+        <Modal
+          title="AIプラン提案"
+          open={isProposalOpen}
+          onCancel={() => { setIsProposalOpen(false); setProposalStep(0); setDiagRationale(null); setDiagAiCriteria(null) }}
+          footer={null}
+          destroyOnHidden
+          width={720}
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-500">ステップ {proposalStep + 1} / {proposalQuestions.length}</span>
+            </div>
+            {(() => {
+              const q = proposalQuestions[proposalStep]
+              if (!q) return null
+              return (
+                <div className="space-y-3">
+                  <div className="text-base font-medium text-slate-800">{q.title}</div>
+                  <div className="space-y-2">
+                    {q.options.map(opt => {
+                      const selected = proposalSelections[q.id]?.has(opt.id) ?? false
+                      if (q.multi) {
+                        return (
+                          <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
+                            <Checkbox
+                              checked={selected}
+                              onChange={() => toggleProposalOption(q.id, opt.id, true)}
+                            />
+                            <span className="text-slate-700">{opt.label}</span>
+                          </label>
+                        )
+                      }
+                      return (
+                        <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
+                          <Radio
+                            checked={selected}
+                            onChange={() => toggleProposalOption(q.id, opt.id, false)}
+                          />
+                          <span className="text-slate-700">{opt.label}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })()}
+            <div className="flex flex-col gap-3 pt-2">
+              {diagRationale && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="font-medium text-blue-800 mb-1">診断理由</div>
+                  <div className="text-sm text-slate-700 whitespace-pre-line">{humanizeRationale(diagRationale)}</div>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <div className="flex gap-2">
+                  <Button onClick={() => {
+                    if (proposalStep === 0) { setIsProposalOpen(false); return }
+                    setProposalStep(s => Math.max(0, s - 1))
+                  }}>戻る</Button>
+                  {proposalStep < proposalQuestions.length - 1 ? (
+                    <Button type="primary" onClick={() => setProposalStep(s => Math.min(proposalQuestions.length - 1, s + 1))}>次へ</Button>
+                  ) : (
+                    diagRationale ? (
+                      <>
+                        <Button onClick={() => { setDiagRationale(null); setDiagAiCriteria(null); setDiagnosedProductIds(null) }}>再診断</Button>
+                        <Button type="primary" onClick={() => {
+                          const crit = diagAiCriteria ?? buildCriteriaFromSelections()
+                          setAiCriteria(crit)
+                          setIsProposalOpen(false)
+                          setProposalStep(0)
+                        }}>条件を適用</Button>
+                      </>
+                    ) : (
+                      <Button type="primary" loading={isDiagnosing} onClick={async () => {
+                        try {
+                          setIsDiagnosing(true)
+                          const payload = {
+                            proposalSelections: Object.fromEntries(Object.entries(proposalSelections).map(([k, v]) => [k, Array.from(v ?? [])])),
+                            age,
+                            gender,
+                            dailyAmount
+                          }
+                          const res = await fetch('/api/medical/diagnose', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                          })
+                          if (res.ok) {
+                            const json = await res.json()
+                            if (json?.success) {
+                              if (Array.isArray(json.productIds) && json.productIds.length > 0) setDiagnosedProductIds(json.productIds)
+                              if (json.aiCriteria && typeof json.aiCriteria === 'object') setDiagAiCriteria(json.aiCriteria)
+                              setDiagRationale(typeof json.rationale === 'string' ? json.rationale : '診断結果を取得しました。')
+                            }
+                          }
+                        } catch (_) {
+                          setDiagRationale('診断の取得に失敗しました。もう一度お試しください。')
+                          setDiagnosedProductIds(null)
+                          setDiagAiCriteria(null)
+                        } finally {
+                          setIsDiagnosing(false)
+                        }
+                      }}>診断する</Button>
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Modal>
 
         {/* 結果一覧 */}
         <ComparisonTable
           products={filteredAndSorted}
           selectedIds={selectedIds}
           visibleProductIds={visibleProductIds}
+          aiCriteria={aiCriteria}
           onToggle={(id) =>
             setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
           }
@@ -194,6 +695,7 @@ function ComparisonTable({
   products,
   selectedIds,
   visibleProductIds,
+  aiCriteria,
   onToggle,
   onCompareSelected,
   onResetVisible
@@ -201,6 +703,7 @@ function ComparisonTable({
   products: Product[]
   selectedIds: string[]
   visibleProductIds: string[] | null
+  aiCriteria: any | null
   onToggle: (id: string) => void
   onCompareSelected: () => void
   onResetVisible: () => void
@@ -528,6 +1031,7 @@ function ComparisonTable({
       align: "center",
       render: (p) => p.insurerName
     },
+    // 旧: 商品ごとのAI一致ラベル行は列へ移行済み
     // 商品行は削除
     {
       key: "feature_tags",
@@ -864,6 +1368,7 @@ function ComparisonTable({
   const labelOrder: string[] = [
     "ランキング",
     "保険会社名",
+    "AI診断",
     "商品名",
     "月払い保険料",
     "見積り・申込み",
@@ -991,6 +1496,63 @@ function ComparisonTable({
       render: (value: string) => (
         <span className="text-slate-700">{value}</span>
       )
+    },
+    {
+      title: "AI診断",
+      dataIndex: "_ai",
+      key: "_ai",
+      width: 180,
+      fixed: "left",
+      render: (_: any, record: any) => {
+        const label: string = record._label
+        if (!aiCriteria) return <span className="text-caption text-slate-400">-</span>
+        const chips: string[] = []
+        const push = (text: string) => { if (!chips.includes(text)) chips.push(text) }
+        switch (label) {
+          case "先進医療":
+            if (aiCriteria.needsAdvancedMedical) push("推奨")
+            break
+          case "通院":
+            if (aiCriteria.wantsOutpatient) push("推奨")
+            break
+          case "手術":
+            if (aiCriteria.preferHighMultiplier) push("高倍率推奨")
+            break
+          case "死亡・高度障害":
+            if (aiCriteria.requireDeathBenefit) push("必要")
+            break
+          case "（無事故）健康ボーナス":
+            if (aiCriteria.preferHealthBonus) push("推奨")
+            break
+          case "払込方法（経路）":
+            if (Array.isArray(aiCriteria.preferredPaymentRoutes) && aiCriteria.preferredPaymentRoutes.length > 0) {
+              const map: Record<string, string> = { account: "口座振替", creditCard: "クレジットカード" }
+              aiCriteria.preferredPaymentRoutes.forEach((r: string) => push(map[r] ?? r))
+            }
+            break
+          case "払込方法（回数）":
+            if (Array.isArray(aiCriteria.preferredPaymentFrequencies) && aiCriteria.preferredPaymentFrequencies.length > 0) {
+              const map: Record<string, string> = { monthly: "月払", semiannual: "半年払", annual: "年払" }
+              aiCriteria.preferredPaymentFrequencies.forEach((f: string) => push(map[f] ?? f))
+            }
+            break
+          case "プランに含まれている特約・特則":
+            if (Array.isArray(aiCriteria.requiredIncludedRiderKeywords) && aiCriteria.requiredIncludedRiderKeywords.length > 0) {
+              aiCriteria.requiredIncludedRiderKeywords.forEach((k: string) => push(k))
+            }
+            break
+          default:
+            break
+        }
+        if (chips.length === 0) return <span className="text-caption text-slate-400">-</span>
+        return (
+          <div className="flex flex-wrap gap-1 justify-center">
+            {chips.map((t: string) => (
+              <span key={t} className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-caption text-emerald-700">{t}</span>
+            ))}
+          </div>
+        )
+      }
     },
     ...filteredProducts.map((p) => ({
       title: (
