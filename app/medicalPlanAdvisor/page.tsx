@@ -55,6 +55,13 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
   const [diagRationale, setDiagRationale] = useState<string | null>(null)
   /** 診断で推定されたAI条件（適用まで一時保持） */
   const [diagAiCriteria, setDiagAiCriteria] = useState<AiCriteria | null>(null)
+  /** 質問トランジション（フェード）状態 */
+  const [isQTransitioning, setIsQTransitioning] = useState<boolean>(false)
+  /** トランジション方向 */
+  const [transitionDir, setTransitionDir] = useState<"next" | "prev" | null>(null)
+  /** 入場キック（一瞬オフセットから0へ） */
+  const [enterKick, setEnterKick] = useState<boolean>(false)
+  const [enterDir, setEnterDir] = useState<"next" | "prev" | "none">("none")
 
   // 診断理由のユーザー向け整形（内部ID→商品名、やわらかい前置き）
   const humanizeRationale = (raw: string | null): string => {
@@ -213,14 +220,52 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
     return cut
   }
 
+  // 質問ヘルプ（補足説明）
+  const [expandedHelp, setExpandedHelp] = useState<string | null>(null)
+  const helpTextByQId: Record<string, string> = {
+    q1: '医療費・収入減・先進医療など、何に比重を置くかで設計が大きく変わります。迷ったら複数選択でも構いません。',
+    q2: '入院が長引くほど自己負担や生活費への影響が増します。長期志向だと支払日数の長い商品が向きます。',
+    q3: '毎月の支払いの軽さか、早めに払い終える安心かの選好です。クレカ・口座や月払・年払も商品選びに影響します。',
+    q4: '入院1日あたりの受取額です。治療方針や生活費の考え方に合わせてお選びください。',
+    q5: '1入院で給付される日数の上限です。長期志向なら延長や無制限に対応する商品が適します。',
+    q6: '退院後の通院・在宅治療の費用補填に関する保障です。通院重視の方は付加を検討ください。',
+    q7: '保険期間は「終身」か「定期（一定期間）」の選好です。長く持ちたい方は終身を選びます。',
+    q8: '必要に応じて先進医療、通院、払込免除などの特約を選べます。追加すると保険料は上がります。',
+    q9: '無事故時の還付や割引の有無です。将来の戻りを重視するか、現在の保険料を重視するかの指向です。',
+    q10: '月払／年払の選択は利便性や総支払額に影響します。ライフスタイルに合うものを選びましょう。'
+  }
+
+  // リッチな選択ボタン（medical/page.tsxのトーンを参考）
+  function RichOptionButton({ label, selected, onToggle, isMulti }: { label: string; selected: boolean; onToggle: () => void; isMulti: boolean }) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`w-full text-left justify-start h-12 px-4 rounded-md border transition-colors ${
+          selected
+            ? 'bg-green-100 border-green-400'
+            : 'bg-white border-green-200 hover:border-green-300 hover:bg-green-50'
+        }`}
+      >
+        <span
+          className={`inline-block align-middle mr-3 w-5 h-5 border-2 ${isMulti ? 'rounded' : 'rounded-full'} ${
+            selected ? 'bg-green-600 border-green-600' : 'border-green-300'
+          }`}
+        />
+        <span className="align-middle text-slate-700">{label}</span>
+      </button>
+    )
+  }
+
   /** 質問定義（簡易版） */
   interface ProposalOption { id: string; label: string; }
-  interface ProposalQuestion { id: string; title: string; multi: boolean; options: ProposalOption[] }
+  interface ProposalQuestion { id: string; title: string; multi: boolean; options: ProposalOption[]; illustration?: string }
   const proposalQuestions: ProposalQuestion[] = [
     {
       id: "q1",
       title: "どんな安心を優先したいですか？（複数選択可・生活シーンでお選びください）",
       multi: true,
+      illustration: "🏥💊",
       options: [
         { id: "advanced_med", label: "最新の治療（先進医療）へのアクセスを確保したい" },
         { id: "cancer_long", label: "長引く治療や手術にしっかり備えたい" },
@@ -231,6 +276,7 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
       id: "q2",
       title: "入院が長引いた場合、どの程度まで備えたいですか？（単一選択）",
       multi: false,
+      illustration: "📅🏥",
       options: [
         { id: "short", label: "短期が主。長期はあまり想定しない" },
         { id: "mid", label: "中期まで備えたい" },
@@ -241,6 +287,7 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
       id: "q3",
       title: "支払い方針はどちらが近いですか？（単一選択）",
       multi: false,
+      illustration: "💳📊",
       options: [
         { id: "light_monthly", label: "毎月の負担を軽くして続けやすくしたい（クレカ/月払）" },
         { id: "finish_early", label: "働けるうちに早めに払い終えたい（口座/年払）" }
@@ -250,6 +297,7 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
       id: "q4",
       title: "入院中の1日あたりの備えはどの水準が安心ですか？（単一選択）",
       multi: false,
+      illustration: "💊💵",
       options: [
         { id: "h5000", label: "5,000円/日" },
         { id: "h10000", label: "10,000円/日" }
@@ -259,6 +307,7 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
       id: "q5",
       title: "入院の支払日数（限度）についての志向は？（単一選択）",
       multi: false,
+      illustration: "📈🛌",
       options: [
         { id: "limit60", label: "60日型で十分" },
         { id: "limitLong", label: "長期にも備えたい（延長や無制限に関心）" }
@@ -268,6 +317,7 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
       id: "q6",
       title: "退院後・外来の備え（通院保障）は必要ですか？（単一選択）",
       multi: false,
+      illustration: "🏠🚶",
       options: [
         { id: "needOut", label: "必要（在宅・通院もカバーしたい）" },
         { id: "noOut", label: "不要（入院中心でよい）" }
@@ -277,6 +327,7 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
       id: "q7",
       title: "保険期間のイメージは？（単一選択）",
       multi: false,
+      illustration: "📜⏳",
       options: [
         { id: "whole", label: "終身（ずっと持ちたい）" },
         { id: "term10", label: "定期（10年）でもよい" }
@@ -286,6 +337,7 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
       id: "q8",
       title: "必要そうな追加保障（特約）があればお選びください（複数選択可）",
       multi: true,
+      illustration: "🧩",
       options: [
         { id: "rider_advanced", label: "先進医療特約" },
         { id: "rider_outpatient", label: "通院特約" },
@@ -296,6 +348,7 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
       id: "q9",
       title: "健康還付（ボーナス）や割引のあるタイプは？（単一選択）",
       multi: false,
+      illustration: "🎁",
       options: [
         { id: "bonus_yes", label: "あるほうが良い（将来の戻りも意識）" },
         { id: "bonus_no", label: "こだわらない（保険料を優先）" }
@@ -305,6 +358,7 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
       id: "q10",
       title: "支払回数はどちらが合いそうですか？（単一選択）",
       multi: false,
+      illustration: "🗓️",
       options: [
         { id: "freq_month", label: "月払" },
         { id: "freq_annual", label: "年払" }
@@ -324,6 +378,29 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
       return { ...prev, [qid]: new Set([oid]) }
     })
   }
+
+  /** 単一選択時に選択→次の質問へフェード遷移 */
+  const animateStep = (dir: "next" | "prev", nextStep: number) => {
+    setTransitionDir(dir)
+    setIsQTransitioning(true)
+    window.setTimeout(() => {
+      setProposalStep(nextStep)
+      setEnterDir(dir)
+      setEnterKick(true)
+      setIsQTransitioning(false)
+      window.setTimeout(() => setEnterKick(false), 20)
+    }, 180)
+  }
+
+  const handleSingleSelect = (qid: string, oid: string) => {
+    toggleProposalOption(qid, oid, false)
+    if (proposalStep < proposalQuestions.length - 1) {
+      animateStep("next", Math.min(proposalQuestions.length - 1, proposalStep + 1))
+    }
+  }
+
+  const goNextAnimated = () => animateStep("next", Math.min(proposalQuestions.length - 1, proposalStep + 1))
+  const goPrevAnimated = () => animateStep("prev", Math.max(0, proposalStep - 1))
 
   /** 回答→AI条件へ変換 */
   const buildCriteriaFromSelections = (): AiCriteria => {
@@ -583,21 +660,22 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
           footer={null}
           destroyOnHidden
           width={720}
+          styles={{ body: { paddingTop: 20, paddingBottom: 24 } }}
         >
-          <div className="space-y-4">
+          <div className="space-y-6">
             {isDiagnosing ? (
               <div className="bg-white shadow-sm border border-slate-200 rounded-lg">
-                <div className="p-4 text-center">
+                <div className="p-6 text-center">
                   <div className="text-4xl mb-2">🤖</div>
                   <div className="text-lg font-semibold text-blue-700 mb-2">AI診断実行中</div>
-                  <div className="py-4">
+                  <div className="py-5">
                     <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                     </div>
                     <p className="text-sm text-slate-600 mb-1">AIがあなたの回答を分析中です</p>
                     <p className="text-xs text-slate-500">しばらくお待ちください…</p>
                   </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-left mx-auto max-w-md">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left mx-auto max-w-md">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       <span className="text-xs text-slate-700">回答の分析完了</span>
@@ -615,20 +693,20 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
               </div>
             ) : diagRationale ? (
               <div className="bg-white shadow-sm border border-slate-200 rounded-lg">
-                <div className="p-4 text-center">
+                <div className="p-6 text-center">
                   <div className="text-4xl mb-2">🎯</div>
                   <div className="text-lg font-semibold text-green-700">AI診断結果</div>
                 </div>
-                <div className="px-4 pb-4 space-y-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-left">
+                <div className="px-6 pb-6 space-y-5">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
                     <div className="font-medium text-blue-800 mb-1">おすすめ商品</div>
                     <div className="text-sm text-slate-700 whitespace-pre-line">{buildRecommendationBullet(diagRationale, diagnosedProductIds)}</div>
                   </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-left">
-                    <div className="font-medium text-blue-800 mb-1">おすすめ理由</div>
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-left">
+                    <div className="font-medium text-green-800 mb-1">おすすめ理由</div>
                     <div className="text-sm text-slate-700 whitespace-pre-line">{buildPoliteReasonSummary(diagRationale)}</div>
                   </div>
-                  <div className="flex gap-2 justify-end">
+                  <div className="flex gap-3 justify-end pt-1">
                     <Button
                       onClick={() => {
                         const crit = diagAiCriteria ?? buildCriteriaFromSelections()
@@ -647,83 +725,121 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
               </div>
             ) : (
               <>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-500">ステップ {proposalStep + 1} / {proposalQuestions.length}</span>
-                </div>
-                {(() => {
+                <div className="border border-gray-200 rounded-xl p-5">
+                  <div className="flex items-center justify-center mb-4">
+                    <div className="inline-flex items-center justify-center w-12 h-12 bg-green-700 text-white rounded-full">
+                      <span className="text-lg font-bold">Q{proposalStep + 1}</span>
+                    </div>
+                  </div>
+                  {(() => {
                   const q = proposalQuestions[proposalStep]
                   if (!q) return null
                   return (
-                    <div className="space-y-3">
-                      <div className="text-base font-medium text-slate-800">{q.title}</div>
-                      <div className="space-y-2">
+                    <div className="space-y-6 text-center">
+                      <div className="text-base font-medium text-slate-800 leading-relaxed">{q.title}</div>
+                      {q.illustration && (
+                        <div className="text-4xl my-2">{q.illustration}</div>
+                      )}
+                      <div
+                        className={`space-y-3 max-w-xl mx-auto transition-all duration-200 ${
+                          isQTransitioning
+                            ? (transitionDir === 'next' ? 'opacity-0 -translate-x-6' : 'opacity-0 translate-x-6')
+                            : (enterKick
+                                ? (enterDir === 'next' ? 'opacity-100 translate-x-0' : 'opacity-100 translate-x-0')
+                                : (enterDir === 'next' ? 'opacity-100 translate-x-0' : 'opacity-100 translate-x-0'))
+                        }`}
+                        style={{ transform: !isQTransitioning && enterKick ? (enterDir === 'next' ? 'translateX(12px)' : 'translateX(-12px)') : undefined }}
+                      >
                         {q.options.map(opt => {
                           const selected = proposalSelections[q.id]?.has(opt.id) ?? false
                           if (q.multi) {
                             return (
-                              <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
-                                <Checkbox
-                                  checked={selected}
-                                  onChange={() => toggleProposalOption(q.id, opt.id, true)}
+                              <div key={opt.id}>
+                                <RichOptionButton
+                                  label={opt.label}
+                                  selected={selected}
+                                  onToggle={() => toggleProposalOption(q.id, opt.id, true)}
+                                  isMulti
                                 />
-                                <span className="text-slate-700">{opt.label}</span>
-                              </label>
+                              </div>
                             )
                           }
                           return (
-                            <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
-                              <Radio
-                                checked={selected}
-                                onChange={() => toggleProposalOption(q.id, opt.id, false)}
+                            <div key={opt.id}>
+                              <RichOptionButton
+                                label={opt.label}
+                                selected={selected}
+                                onToggle={() => handleSingleSelect(q.id, opt.id)}
+                                isMulti={false}
                               />
-                              <span className="text-slate-700">{opt.label}</span>
-                            </label>
+                            </div>
                           )
                         })}
                       </div>
+                      {/* 補足説明（アコーディオン） */}
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden max-w-xl mx-auto">
+                        <button
+                          className="w-full p-2 flex items-center justify-between hover:bg-gray-100 transition-colors"
+                          onClick={() => setExpandedHelp(prev => prev === q.id ? null : q.id)}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <div className="w-5 h-5 bg-orange-500 text-white rounded-full flex items-center justify-center">
+                              <span className="text-xs font-bold">i</span>
+                            </div>
+                            <span className="text-sm text-blue-600">{q.title.replace(/（.*?）/g, '')} について</span>
+                          </div>
+                          <span className={`text-gray-400 transition-transform ${expandedHelp === q.id ? 'rotate-180' : ''}`}>⌄</span>
+                        </button>
+                        {expandedHelp === q.id && (
+                          <div className="px-3 pb-3 border-t border-gray-200 text-left">
+                            <div className="pt-2 text-sm text-gray-700 leading-relaxed">{helpTextByQId[q.id] ?? ''}</div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )
-                })()}
-                <div className="flex items-center justify-between pt-2">
-                  <div className="flex gap-2">
-                    <Button onClick={() => {
-                      if (proposalStep === 0) { setIsProposalOpen(false); return }
-                      setProposalStep(s => Math.max(0, s - 1))
-                    }}>戻る</Button>
-                    {proposalStep < proposalQuestions.length - 1 ? (
-                      <Button type="primary" onClick={() => setProposalStep(s => Math.min(proposalQuestions.length - 1, s + 1))}>次へ</Button>
-                    ) : (
-                      <Button type="primary" loading={isDiagnosing} onClick={async () => {
-                        try {
-                          setIsDiagnosing(true)
-                          const payload = {
-                            proposalSelections: Object.fromEntries(Object.entries(proposalSelections).map(([k, v]) => [k, Array.from(v ?? [])])),
-                            age,
-                            gender,
-                            dailyAmount
-                          }
-                          const res = await fetch('/api/medical/diagnose', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                          })
-                          if (res.ok) {
-                            const json = await res.json()
-                            if (json?.success) {
-                              if (Array.isArray(json.productIds) && json.productIds.length > 0) setDiagnosedProductIds(json.productIds)
-                              if (json.aiCriteria && typeof json.aiCriteria === 'object') setDiagAiCriteria(json.aiCriteria)
-                              setDiagRationale(typeof json.rationale === 'string' ? json.rationale : '診断結果を取得しました。')
+                  })()}
+                  <div className="flex items-center justify-center pt-5">
+                    <div className="flex gap-6">
+                      <Button size="large" className="h-11 px-8 min-w-[140px]" onClick={() => {
+                        if (proposalStep === 0) { setIsProposalOpen(false); return }
+                        goPrevAnimated()
+                      }}>戻る</Button>
+                      {proposalStep < proposalQuestions.length - 1 ? (
+                        <Button size="large" type="primary" className="h-11 px-9 min-w-[160px]" onClick={goNextAnimated}>次へ</Button>
+                      ) : (
+                        <Button size="large" type="primary" className="h-11 px-9 min-w-[160px]" loading={isDiagnosing} onClick={async () => {
+                          try {
+                            setIsDiagnosing(true)
+                            const payload = {
+                              proposalSelections: Object.fromEntries(Object.entries(proposalSelections).map(([k, v]) => [k, Array.from(v ?? [])])),
+                              age,
+                              gender,
+                              dailyAmount
                             }
+                            const res = await fetch('/api/medical/diagnose', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify(payload)
+                            })
+                            if (res.ok) {
+                              const json = await res.json()
+                              if (json?.success) {
+                                if (Array.isArray(json.productIds) && json.productIds.length > 0) setDiagnosedProductIds(json.productIds)
+                                if (json.aiCriteria && typeof json.aiCriteria === 'object') setDiagAiCriteria(json.aiCriteria)
+                                setDiagRationale(typeof json.rationale === 'string' ? json.rationale : '診断結果を取得しました。')
+                              }
+                            }
+                          } catch (_) {
+                            setDiagRationale('診断の取得に失敗しました。もう一度お試しください。')
+                            setDiagnosedProductIds(null)
+                            setDiagAiCriteria(null)
+                          } finally {
+                            setIsDiagnosing(false)
                           }
-                        } catch (_) {
-                          setDiagRationale('診断の取得に失敗しました。もう一度お試しください。')
-                          setDiagnosedProductIds(null)
-                          setDiagAiCriteria(null)
-                        } finally {
-                          setIsDiagnosing(false)
-                        }
-                      }}>診断する</Button>
-                    )}
+                        }}>診断する</Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </>
@@ -1649,7 +1765,17 @@ function ComparisonTable({
       )
     },
     {
-      title: "AI診断",
+      title: (
+        <div className="w-full flex items-center justify-center gap-2">
+          <MessageCircle className="w-5 h-5 text-emerald-600" />
+          <span className="text-base font-semibold text-slate-700">AI診断</span>
+          {aiCriteria && (
+            <span className="ml-1 px-1.5 py-0.5 rounded border border-emerald-200 bg-emerald-50 text-emerald-700 text-[11px]">
+              適用中
+            </span>
+          )}
+        </div>
+      ),
       dataIndex: "_ai",
       key: "_ai",
       width: 180,
