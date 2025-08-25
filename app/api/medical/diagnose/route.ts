@@ -29,6 +29,10 @@ interface AiCriteria {
   preferredPaymentRoutes?: Array<'account' | 'creditCard'>
   preferredPaymentFrequencies?: Array<'monthly' | 'semiannual' | 'annual'>
   requiredIncludedRiderKeywords?: string[]
+  hospitalizationDailyAmount?: number
+  preferLongHospitalizationLimit?: boolean
+  policyPeriodPreference?: 'whole' | 'term'
+  preferAffordable?: boolean
 }
 
 /** リクエストボディ型 */
@@ -115,7 +119,7 @@ function buildCriteriaFromSelections(selections: Record<string, string[] | null 
   const q2 = get('q2')
   if (q2.includes('long')) c.preferHighMultiplier = true
   const q3 = get('q3')
-  if (q3.includes('light_monthly')) { c.preferredPaymentFrequencies = ['monthly']; c.preferredPaymentRoutes = ['creditCard'] }
+  if (q3.includes('light_monthly')) { c.preferredPaymentFrequencies = ['monthly']; c.preferredPaymentRoutes = ['creditCard']; c.preferAffordable = true }
   if (q3.includes('finish_early')) { c.preferredPaymentFrequencies = ['annual']; c.preferredPaymentRoutes = ['account'] }
   const q8 = get('q8')
   if (q8.includes('rider_advanced')) (c.requiredIncludedRiderKeywords ??= []).push('先進医療')
@@ -124,6 +128,14 @@ function buildCriteriaFromSelections(selections: Record<string, string[] | null 
   const q10 = get('q10')
   if (q10.includes('freq_month')) c.preferredPaymentFrequencies = ['monthly']
   if (q10.includes('freq_annual')) c.preferredPaymentFrequencies = ['annual']
+  const q4 = get('q4')
+  if (q4.includes('h5000')) c.hospitalizationDailyAmount = 5000
+  if (q4.includes('h10000')) c.hospitalizationDailyAmount = 10000
+  const q5 = get('q5')
+  if (q5.includes('limitLong')) c.preferLongHospitalizationLimit = true
+  const q7 = get('q7')
+  if (q7.includes('whole')) c.policyPeriodPreference = 'whole'
+  if (q7.includes('term10')) c.policyPeriodPreference = 'term'
   return c
 }
 
@@ -150,6 +162,36 @@ function scoreProductByCriteria(p: Product, criteria: AiCriteria): { score: numb
     const hay = inferIncludedRiders(p).join(' ')
     const ok = criteria.requiredIncludedRiderKeywords.every(kw => hay.includes(kw))
     if (ok) { score += 1; hardMatches += 1 }
+  }
+  if (typeof criteria.hospitalizationDailyAmount === 'number') {
+    if (p.hospitalizationCoverage.hospitalizationDailyAmount === criteria.hospitalizationDailyAmount) { score += 1; hardMatches += 1 }
+  }
+  if (criteria.preferLongHospitalizationLimit) {
+    const s = p.hospitalizationCoverage.hospitalizationLimitPerHospitalization
+    if (/unlimited|120|90/.test(s)) { score += 1; hardMatches += 1 }
+  }
+  if (criteria.policyPeriodPreference) {
+    const wantWhole = criteria.policyPeriodPreference === 'whole'
+    const ok = (wantWhole && p.policyType === 'wholeLife') || (!wantWhole && p.policyType === 'term')
+    if (ok) { score += 1; hardMatches += 1 }
+  }
+  // 付帯・特約の充実度（軽いバイアス）
+  const riderRichness = (() => {
+    const r = p.riders || {}
+    let c = 0
+    if (r.advancedMedicalRider) c += 1
+    if ((r.criticalIllnessRiders ?? []).length > 0) c += 1
+    if (r.womenSpecificRider) c += 1
+    if (r.hospitalizationLumpSumRider) c += 1
+    if (r.waiverRider) c += 1
+    if (r.injuryFractureRider) c += 1
+    if (r.disabilityIncomeOrWorkIncapacityRider) c += 1
+    c += (r.otherRiders ?? []).length
+    return c
+  })()
+  score += Math.min(1, riderRichness * 0.1)
+  if (criteria.preferAffordable && typeof p.premiumInfo?.sampleMonthlyPremium === 'number') {
+    score -= Math.min(1, p.premiumInfo.sampleMonthlyPremium / 5000) * 0.2
   }
   score += Math.min(1, Math.max(0, p.popularity / 100))
   return { score, hardMatches }
@@ -205,7 +247,7 @@ function createPrompt(selections: Record<string, string[] | null | undefined>, a
     includedRiders: inferIncludedRiders(p)
   }))
 
-  return `以下は医療保険の商品一覧（20件）です。ユーザーの希望に適合する商品だけを 3〜6 件選び、厳密な JSON のみを出力してください。可能なら 4〜5 件の選定を優先してください（3 未満や 6 超は不可）。
+  return `以下は医療保険の商品一覧（20件）です。ユーザーの希望に適合する商品だけを 3〜6 件選び、厳密な JSON のみを出力してください。可能なら 3 件の選定を優先してください（3 未満や 6 超は不可）。「保険期間」「入院日額」「手術方式」を重視しつつ、プランに含まれる特約・特則の充実度と保険料のバランスも考慮してください。
 
 【ユーザー希望（AI条件）】
 ${JSON.stringify(criteria)}
@@ -218,7 +260,7 @@ ${JSON.stringify(products)}
 【出力仕様（厳守）】
 1) JSONのみを出力する（説明や前後文は絶対に書かない）
 2) 形式: {"productIds": string[], "aiCriteria": AiCriteria, "rationale": string}
-3) productIds は上の一覧の productId のみを使用し、重複なし、かつ長さは3〜6（可能なら4〜5件を優先）
+3) productIds は上の一覧の productId のみを使用し、重複なし、かつ長さは3〜6（可能なら3件を優先）
 4) 全件一致や0件を避ける。適合度の高いものから選ぶ
 5) aiCriteria は上記希望を再掲・補足（省略可のキーは省略可）
 6) rationale には短い理由を日本語で記述

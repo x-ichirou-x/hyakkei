@@ -219,36 +219,36 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
   const proposalQuestions: ProposalQuestion[] = [
     {
       id: "q1",
-      title: "今、一番重視したいポイントはどれですか？（複数選択可）",
+      title: "どんな安心を優先したいですか？（複数選択可・生活シーンでお選びください）",
       multi: true,
       options: [
-        { id: "advanced_med", label: "先進医療の高額治療費に備えたい" },
-        { id: "cancer_long", label: "がん等の長期治療でも手厚くしたい（手術倍率など）" },
-        { id: "income_drop", label: "退院後の通院などで生活費の不足が心配" }
+        { id: "advanced_med", label: "最新の治療（先進医療）へのアクセスを確保したい" },
+        { id: "cancer_long", label: "長引く治療や手術にしっかり備えたい" },
+        { id: "income_drop", label: "退院後の通院や生活費の不安を軽くしたい" }
       ]
     },
     {
       id: "q2",
-      title: "入院が長期化した場合の備えは必要ですか？（単一選択）",
+      title: "入院が長引いた場合、どの程度まで備えたいですか？（単一選択）",
       multi: false,
       options: [
         { id: "short", label: "短期が主。長期はあまり想定しない" },
         { id: "mid", label: "中期まで備えたい" },
-        { id: "long", label: "長期にも備えたい（無制限や高倍率に関心）" }
+        { id: "long", label: "長期にも備えたい（入院無制限・高倍率などを重視）" }
       ]
     },
     {
       id: "q3",
-      title: "保険料の支払い方の志向は？（単一選択）",
+      title: "支払い方針はどちらが近いですか？（単一選択）",
       multi: false,
       options: [
-        { id: "light_monthly", label: "毎月の負担を軽く（月払・クレカ希望）" },
-        { id: "finish_early", label: "働けるうちに早めに払い終えたい（年払・口座希望）" }
+        { id: "light_monthly", label: "毎月の負担を軽くして続けやすくしたい（クレカ/月払）" },
+        { id: "finish_early", label: "働けるうちに早めに払い終えたい（口座/年払）" }
       ]
     },
     {
       id: "q4",
-      title: "入院日額はどの水準を希望しますか？（単一選択）",
+      title: "入院中の1日あたりの備えはどの水準が安心ですか？（単一選択）",
       multi: false,
       options: [
         { id: "h5000", label: "5,000円/日" },
@@ -257,34 +257,34 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
     },
     {
       id: "q5",
-      title: "1入院の限度日数の志向は？（単一選択）",
+      title: "入院の支払日数（限度）についての志向は？（単一選択）",
       multi: false,
       options: [
         { id: "limit60", label: "60日型で十分" },
-        { id: "limitLong", label: "長期にも備えたい" }
+        { id: "limitLong", label: "長期にも備えたい（延長や無制限に関心）" }
       ]
     },
     {
       id: "q6",
-      title: "通院保障は必要ですか？（単一選択）",
+      title: "退院後・外来の備え（通院保障）は必要ですか？（単一選択）",
       multi: false,
       options: [
-        { id: "needOut", label: "必要" },
-        { id: "noOut", label: "不要" }
+        { id: "needOut", label: "必要（在宅・通院もカバーしたい）" },
+        { id: "noOut", label: "不要（入院中心でよい）" }
       ]
     },
     {
       id: "q7",
-      title: "保険期間は？（単一選択）",
+      title: "保険期間のイメージは？（単一選択）",
       multi: false,
       options: [
-        { id: "whole", label: "終身" },
-        { id: "term10", label: "定期（10年）" }
+        { id: "whole", label: "終身（ずっと持ちたい）" },
+        { id: "term10", label: "定期（10年）でもよい" }
       ]
     },
     {
       id: "q8",
-      title: "含めたい特約があれば選択（複数選択可）",
+      title: "必要そうな追加保障（特約）があればお選びください（複数選択可）",
       multi: true,
       options: [
         { id: "rider_advanced", label: "先進医療特約" },
@@ -294,16 +294,16 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
     },
     {
       id: "q9",
-      title: "健康還付（ボーナス）があるタイプは？（単一選択）",
+      title: "健康還付（ボーナス）や割引のあるタイプは？（単一選択）",
       multi: false,
       options: [
-        { id: "bonus_yes", label: "あるほうが良い" },
-        { id: "bonus_no", label: "こだわらない" }
+        { id: "bonus_yes", label: "あるほうが良い（将来の戻りも意識）" },
+        { id: "bonus_no", label: "こだわらない（保険料を優先）" }
       ]
     },
     {
       id: "q10",
-      title: "支払回数の希望は？（単一選択）",
+      title: "支払回数はどちらが合いそうですか？（単一選択）",
       multi: false,
       options: [
         { id: "freq_month", label: "月払" },
@@ -346,16 +346,15 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
       c.preferredPaymentRoutes = ["account"]
     }
     const q4 = get("q4")
-    if (q4.includes("h5000")) {
-      // デモ: 入院日額5,000円
-      // 実配列は比較表のフィルタに反映（列のAI診断はラベル表示のみ）
-    }
+    if (q4.includes("h5000")) c.hospitalizationDailyAmount = 5000
+    if (q4.includes("h10000")) c.hospitalizationDailyAmount = 10000
     const q5 = get("q5")
-    if (q5.includes("limitLong")) c.preferHighMultiplier = true
+    if (q5.includes("limitLong")) c.preferLongHospitalizationLimit = true
     const q6 = get("q6")
     if (q6.includes("needOut")) c.wantsOutpatient = true
     const q7 = get("q7")
-    // デモ: policyType の希望は scoring で軽微加点に使うなら別途拡張可能
+    if (q7.includes("whole")) c.policyPeriodPreference = "whole"
+    if (q7.includes("term10")) c.policyPeriodPreference = "term"
     const q8 = get("q8")
     if (q8.includes("rider_advanced")) (c.requiredIncludedRiderKeywords ??= []).push("先進医療")
     if (q8.includes("rider_outpatient")) (c.requiredIncludedRiderKeywords ??= []).push("通院")
@@ -389,6 +388,14 @@ export default function medicalPlanAdvisorPage(): JSX.Element {
     preferredPaymentFrequencies?: Array<"monthly" | "semiannual" | "annual">
     /** 必須の含まれている特約キーワード（一部一致） */
     requiredIncludedRiderKeywords?: string[]
+    /** 入院日額の志向（例: 5000/10000） */
+    hospitalizationDailyAmount?: number
+    /** 1入院の限度日数は長期志向か */
+    preferLongHospitalizationLimit?: boolean
+    /** 保険期間の志向（終身/定期） */
+    policyPeriodPreference?: "whole" | "term"
+    /** 払込期間の志向（早期に払い終えたい） */
+    preferEarlyPayoff?: boolean
   }
 
   /** AI診断からの条件（未適用なら null） */
@@ -1190,7 +1197,18 @@ function ComparisonTable({
     { key: "payingPeriod", group: "保険料", label: "払込期間", align: "center", render: (p) => payingPeriodByProductName[p.productName] ?? "-" },
     { key: "paymentRoute", group: "保険料", label: "払込方法（経路）", align: "center", render: (p) => (paymentRouteByProductName[p.productName] ?? "-") },
     { key: "paymentFrequency", group: "保険料", label: "払込方法（回数）", align: "center", render: (p) => (paymentFrequencyByProductName[p.productName] ?? "-") },
-    { key: "premium", label: "月払い保険料", mergeLabelCols: true, align: "center", render: (p) => (<span className="inline-flex items-end"><span className="text-3xl font-bold leading-none text-rose-600">¥{p.premiumInfo.sampleMonthlyPremium.toLocaleString()}</span><span className="text-xs text-slate-500 ml-1 mb-0.5">/月払</span></span>) },
+    { key: "premium", label: "月払い保険料", mergeLabelCols: true, align: "center", render: (p) => {
+      const prem = p.premiumInfo?.sampleMonthlyPremium ?? 0
+      const na = p.premiumInfo?.premiumChangeRisk === "not_available_for_age" || prem <= 0
+      if (na) {
+        return (
+          <span className="whitespace-pre-line text-slate-500 text-sm">{`年齢対象外につき\n試算できません`}</span>
+        )
+      }
+      return (
+        <span className="inline-flex items-end"><span className="text-3xl font-bold leading-none text-rose-600">¥{prem.toLocaleString()}</span><span className="text-xs text-slate-500 ml-1 mb-0.5">/月払</span></span>
+      )
+    } },
     { key: "section_hospitalization", label: "入院", render: () => "" },
     // CSV(25〜34行目)の手術関連表記を統合して表示
     { key: "surgery", label: "手術", align: "center", render: (p) => {
@@ -1668,6 +1686,18 @@ function ComparisonTable({
               const map: Record<string, string> = { monthly: "月払", semiannual: "半年払", annual: "年払" }
               aiCriteria.preferredPaymentFrequencies.forEach((f: string) => push(map[f] ?? f))
             }
+            break
+          case "入院日額":
+            if (typeof aiCriteria.hospitalizationDailyAmount === 'number') {
+              push(`${aiCriteria.hospitalizationDailyAmount.toLocaleString()}円/日`)
+            }
+            break
+          case "１入院の限度日数":
+            if (aiCriteria.preferLongHospitalizationLimit) push("長期志向")
+            break
+          case "保険期間":
+            if (aiCriteria.policyPeriodPreference === 'whole') push("終身")
+            if (aiCriteria.policyPeriodPreference === 'term') push("定期")
             break
           case "プランに含まれている特約・特則":
             if (Array.isArray(aiCriteria.requiredIncludedRiderKeywords) && aiCriteria.requiredIncludedRiderKeywords.length > 0) {
